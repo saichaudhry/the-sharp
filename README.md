@@ -72,7 +72,7 @@ TODO: list the specific changes you made by hand (file + what + why).
    - `ANTHROPIC_API_KEY`
    - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API)
    - `ODDS_API_KEY` (optional; without it the board shows built-in demo games and picks don't settle)
-4. `npm run dev` → http://localhost:5173
+4. `npm run dev` → http://localhost:5180
 
 `npm run dev` serves both the React app and the `/api` functions. A small plugin in `vite.config.js` runs the files in `/api` the same way Vercel does, so no Vercel CLI is needed locally.
 

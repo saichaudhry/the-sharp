@@ -37,6 +37,10 @@ export function handle(methods) {
       const result = await fn(req, res);
       if (!res.headersSent) res.status(200).json(result ?? {});
     } catch (err) {
+      // PostgREST "table not found": the schema hasn't been run on this Supabase project.
+      if (err.code === 'PGRST205') {
+        err = new HttpError(500, 'Database tables are missing. Run schema.sql in the Supabase SQL Editor.');
+      }
       const status = err.status || 500;
       if (status >= 500) console.error(err);
       res.status(status).json({ error: status >= 500 && !err.status ? 'Something went wrong on our end.' : err.message });

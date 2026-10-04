@@ -100,3 +100,6 @@ revoke execute on function place_pick  from public, anon, authenticated;
 revoke execute on function settle_pick from public, anon, authenticated;
 grant  execute on function place_pick  to service_role;
 grant  execute on function settle_pick to service_role;
+
+-- Tell the Supabase API to pick up the new tables right away.
+notify pgrst, 'reload schema';
