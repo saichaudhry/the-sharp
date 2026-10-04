@@ -57,7 +57,7 @@ export default handle({
     anthropic ??= new Anthropic();
     const response = await anthropic.beta.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: 4096, // a ceiling, not a target: thinking tokens count toward it
       output_config: { effort: 'low' },
       // If Lou's reply is ever declined by a safety classifier, retry on a fallback model.
       betas: ['server-side-fallback-2026-07-01'],
@@ -71,6 +71,9 @@ export default handle({
       console.error('[chat] anthropic error', err.status, err.message);
       throw new HttpError(502, 'Lou stepped out for a smoke. Try again in a sec.');
     });
+
+    if (response.stop_reason === 'refusal') throw new HttpError(422, "Lou won't touch that one. Ask him something else.");
+    if (response.stop_reason === 'max_tokens') throw new HttpError(502, 'Lou lost his train of thought. Try again.');
 
     const reply = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
       || "...Lou just stares at you. (He didn't have an answer for that one.)";

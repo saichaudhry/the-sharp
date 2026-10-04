@@ -27,7 +27,11 @@ export default function App() {
     if (!getPlayerId()) return setProfile(null);
     try {
       // Settle finished games first, so returning players see fresh results.
-      const data = await api('settle', { method: 'POST' });
+      // If settling fails for a server-side reason, still load the profile.
+      const data = await api('settle', { method: 'POST' }).catch((err) => {
+        if (err.status >= 500) return api('me');
+        throw err;
+      });
       setProfile(data);
       const n = data.settled?.length;
       if (n) {

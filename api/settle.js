@@ -36,11 +36,17 @@ export default handle({
 
       // One scores request per sport, not per pick.
       const sports = [...new Set(pending.map((p) => p.sport))];
+      // If the scores feed is down or out of quota, skip that sport this time
+      // instead of failing the whole request. Picks just stay open until next visit.
       const scores = Object.fromEntries(
-        await Promise.all(sports.map(async (s) => [s, await getScores(s)])),
+        await Promise.all(sports.map(async (s) => {
+          try { return [s, await getScores(s)]; }
+          catch (err) { console.error(`[settle] scores for ${s} failed:`, err.message); return [s, null]; }
+        })),
       );
 
       for (const pick of pending) {
+        if (!scores[pick.sport]) continue;
         const game = scores[pick.sport][pick.event_id];
         let result = game ? grade(pick, game) : null;
 

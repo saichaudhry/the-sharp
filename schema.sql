@@ -98,3 +98,5 @@ end $$;
 -- Only the server (service role) may call these.
 revoke execute on function place_pick  from public, anon, authenticated;
 revoke execute on function settle_pick from public, anon, authenticated;
+grant  execute on function place_pick  to service_role;
+grant  execute on function settle_pick to service_role;
