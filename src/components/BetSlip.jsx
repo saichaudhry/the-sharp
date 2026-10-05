@@ -61,7 +61,7 @@ export default function BetSlip({ game, team, bankroll, onClose, onPlaced, onSta
         </div>
 
         <p className="muted small">
-          This price implies a <strong>{Math.round(impliedProb(price) * 100)}%</strong> chance to win.
+          Kalshi traders price this at <strong>{game.cents?.[team] ?? Math.round(impliedProb(price) * 100)}¢</strong>, about a {game.cents?.[team] ?? Math.round(impliedProb(price) * 100)}% chance to win.
           {price > 0 ? ' Underdog: smaller chance, bigger payout.' : ' Favorite: you risk more to win less.'}
         </p>
 

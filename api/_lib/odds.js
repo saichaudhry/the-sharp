@@ -1,97 +1,148 @@
-// Everything that talks to The Odds API (https://the-odds-api.com) lives here.
-// The free tier is 500 requests/month, so every response is cached for
-// CACHE_MINUTES: first in memory, then in the Supabase `api_cache` table
-// (shared across serverless instances and survives cold starts).
-import { db } from './db.js';
+// The board's prices come from Kalshi's public market-data API
+// (https://api.elections.kalshi.com/trade-api/v2). No key needed: game-winner
+// prices are public. Each Kalshi game is an "event" with two markets
+// ("Atlanta wins", "New Orleans wins") whose YES price in dollars is the
+// market's win probability, e.g. $0.54 = 54%.
+//
+// Kalshi only gives short names ("New York J") and no kickoff time, so each
+// event is matched to ESPN's scoreboard for that day to get full team names,
+// the start time, and ESPN ids for the stats hubs.
+import { scoreboard } from './espn.js';
 
 export const SPORTS = {
-  nfl:   { key: 'americanfootball_nfl',   label: 'NFL' },
-  ncaaf: { key: 'americanfootball_ncaaf', label: 'College FB' },
-  mlb:   { key: 'baseball_mlb',           label: 'MLB' },
-  nba:   { key: 'basketball_nba',         label: 'NBA' },
+  nfl:   { series: 'KXNFLGAME',   label: 'NFL' },
+  ncaaf: { series: 'KXNCAAFGAME', label: 'College FB' },
+  mlb:   { series: 'KXMLBGAME',   label: 'MLB' },
+  nba:   { series: 'KXNBAGAME',   label: 'NBA' },
 };
 
-const BASE = 'https://api.the-odds-api.com/v4/sports';
-const CACHE_MINUTES = 10;
-const PREFERRED_BOOKS = ['draftkings', 'fanduel', 'betmgm', 'caesars'];
+const KALSHI = 'https://api.elections.kalshi.com/trade-api/v2';
+const CACHE_SECONDS = 60; // prices move, so keep this short
+const DAYS_AHEAD = 7;
 const memory = new Map();
 
-export const hasOddsKey = () => Boolean(process.env.ODDS_API_KEY);
+async function kalshi(path) {
+  const hit = memory.get(path);
+  if (hit && Date.now() - hit.at < CACHE_SECONDS * 1000) return hit.data;
 
-async function cached(key, fetcher) {
-  const fresh = (t) => Date.now() - new Date(t).getTime() < CACHE_MINUTES * 60_000;
-
-  const hit = memory.get(key);
-  if (hit && fresh(hit.fetched_at)) return hit.data;
-
-  let table = null;
-  try { table = db().from('api_cache'); } catch { /* DB not configured: memory cache only */ }
-
-  if (table) {
-    const { data: row } = await table.select('data, fetched_at').eq('key', key).maybeSingle();
-    if (row && fresh(row.fetched_at)) {
-      memory.set(key, row);
-      return row.data;
-    }
+  let res;
+  try {
+    res = await fetch(`${KALSHI}${path}`, { headers: { 'User-Agent': 'the-sharp/1.0 (CMU 15-113 coursework)' } });
+  } catch {
+    throw Object.assign(new Error('Kalshi is unreachable right now. Try again soon.'), { status: 502 });
   }
-
-  const data = await fetcher();
-  const row = { key, data, fetched_at: new Date().toISOString() };
-  memory.set(key, row);
-  if (table) await db().from('api_cache').upsert(row);
+  if (!res.ok) {
+    throw Object.assign(new Error(res.status === 404 ? 'Market not found on Kalshi.' : 'Kalshi is having trouble. Try again soon.'), { status: res.status === 404 ? 404 : 502 });
+  }
+  const data = await res.json();
+  memory.set(path, { at: Date.now(), data });
   return data;
 }
 
-async function oddsApi(path, params) {
-  const qs = new URLSearchParams({ apiKey: process.env.ODDS_API_KEY, ...params });
-  const res = await fetch(`${BASE}/${path}?${qs}`);
-  if (!res.ok) {
-    const err = new Error(`Odds API ${res.status}`);
-    err.status = res.status === 401 ? 500 : 502;
-    err.message = res.status === 401
-      ? 'Odds API key was rejected.'
-      : res.status === 429 ? 'Odds API quota is used up for now.' : 'Odds provider is having trouble. Try again soon.';
-    throw err;
+// All open games in a series, following Kalshi's cursor pagination.
+async function openEvents(series) {
+  const events = [];
+  let cursor = '';
+  for (let page = 0; page < 5; page++) {
+    const data = await kalshi(`/events?series_ticker=${series}&status=open&with_nested_markets=true&limit=200${cursor ? `&cursor=${cursor}` : ''}`);
+    events.push(...(data.events || []));
+    if (!data.cursor) break;
+    cursor = data.cursor;
   }
-  console.log(`[odds] ${path} - requests remaining: ${res.headers.get('x-requests-remaining')}`);
-  return res.json();
+  return events;
 }
 
-// Turns one raw Odds API event into the small shape the frontend uses.
-function normalize(event, sport) {
-  const book =
-    PREFERRED_BOOKS.map((k) => event.bookmakers.find((b) => b.key === k)).find(Boolean) ||
-    event.bookmakers[0];
-  const market = book?.markets.find((m) => m.key === 'h2h');
-  if (!market) return null;
+// "KXNFLGAME-26OCT05ATLNO" -> "20261005" (the game's date, US Eastern)
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function tickerDate(eventTicker) {
+  const m = eventTicker.split('-')[1]?.match(/^(\d{2})([A-Z]{3})(\d{2})/);
+  const month = m && MONTHS.indexOf(m[2]);
+  if (!m || month < 0) return null;
+  return `20${m[1]}${String(month + 1).padStart(2, '0')}${m[3]}`;
+}
 
-  const prices = {};
-  for (const o of market.outcomes) prices[o.name] = o.price;
-  if (prices[event.home_team] == null || prices[event.away_team] == null) return null;
+// Price rule: pay the ask when the market is tight (spread <= 5¢);
+// otherwise use the midpoint, so one thin order doesn't set a silly price.
+function yesPrice(m) {
+  const bid = Number(m.yes_bid_dollars) || 0;
+  const ask = Number(m.yes_ask_dollars) || 0;
+  if (bid > 0 && ask > 0) return ask - bid <= 0.05 ? ask : (ask + bid) / 2;
+  return Number(m.last_price_dollars) || null;
+}
+
+// 0.54 -> -117, 0.40 -> +150. The rest of the app (bet slip, payouts) works in American odds.
+export function toAmerican(p) {
+  return p >= 0.5 ? -Math.round((100 * p) / (1 - p)) : Math.round((100 * (1 - p)) / p);
+}
+
+const norm = (s = '') => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+
+// How well a Kalshi side ("NYJ", "New York J") matches an ESPN team. 0 = no match.
+function matchScore(side, team) {
+  let score = 0;
+  if (side.abbr === team.abbr) score += 3;
+  const n = norm(side.name);
+  if (n && (norm(team.name).startsWith(n) || norm(team.short) === n)) score += 2; // "New York J" -> "New York Jets"
+  else if (n && norm(team.location) && n.startsWith(norm(team.location))) score += 1; // "Chicago WS" -> "Chicago" (weak)
+  return score;
+}
+
+// Turns one Kalshi event into our game shape, or null if it can't be matched.
+async function toGame(sport, ev) {
+  const sides = (ev.markets || []).map((m) => ({ abbr: m.ticker.split('-').pop(), name: m.yes_sub_title, market: m }));
+  if (sides.length !== 2) return null;
+  const date = tickerDate(ev.event_ticker);
+  if (!date) return null;
+
+  // Both Kalshi sides must match the two teams of the same ESPN game.
+  const games = await scoreboard(sport, date).catch(() => []);
+  let best = null;
+  for (const g of games) {
+    const [c1, c2] = g.competitors;
+    for (const [a, b] of [[c1, c2], [c2, c1]]) {
+      const s1 = matchScore(sides[0], a);
+      const s2 = matchScore(sides[1], b);
+      if (s1 > 0 && s2 > 0 && (!best || s1 + s2 > best.score)) best = { score: s1 + s2, game: g, teams: [a, b] };
+    }
+  }
+  if (!best) return null;
+
+  const probs = sides.map((s) => yesPrice(s.market));
+  // Skip markets with no real price (e.g. "if necessary" playoff games nobody is trading).
+  if (probs.some((p) => !p || p < 0.03 || p > 0.97) || probs[0] + probs[1] > 1.1) return null;
+
+  const home = best.teams.find((t) => t.homeAway === 'home');
+  const away = best.teams.find((t) => t.homeAway === 'away');
+  const byName = (fn) => Object.fromEntries(best.teams.map((t, i) => [t.name, fn(sides[i], probs[i])]));
 
   return {
-    id: event.id,
+    id: ev.event_ticker,
     sport,
-    home: event.home_team,
-    away: event.away_team,
-    commence: event.commence_time,
-    book: book.title,
-    prices,
+    home: home.name,
+    away: away.name,
+    commence: best.game.date,
+    book: 'Kalshi',
+    prices: byName((_, p) => toAmerican(p)),
+    cents: byName((_, p) => Math.round(p * 100)),
+    markets: byName((s) => s.market.ticker),
+    volume: Math.round(sides.reduce((v, s) => v + (Number(s.market.volume_fp) || 0), 0)),
+    espn: { eventId: best.game.id, homeId: home.id, awayId: away.id },
   };
 }
 
-// Upcoming games with moneyline prices. Games that already started are
-// filtered out: you can't bet on them here.
+// Upcoming games with prices. Games that already started are left out:
+// Kalshi keeps trading during games, but you can't bet live here.
 export async function getGames(sport) {
   if (!SPORTS[sport]) return [];
-  const games = hasOddsKey()
-    ? await cached(`odds:${sport}`, async () => {
-        const raw = await oddsApi(`${SPORTS[sport].key}/odds`, {
-          regions: 'us', markets: 'h2h', oddsFormat: 'american',
-        });
-        return raw.map((e) => normalize(e, sport)).filter(Boolean);
-      })
-    : mockGames(sport);
+  const etDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(ms)).replaceAll('-', '');
+  const today = etDate(Date.now());
+  const horizon = etDate(Date.now() + DAYS_AHEAD * 86_400_000);
+
+  const events = (await openEvents(SPORTS[sport].series)).filter((e) => {
+    const d = tickerDate(e.event_ticker);
+    return d && d >= today && d <= horizon;
+  });
+  const games = (await Promise.all(events.map((e) => toGame(sport, e).catch(() => null)))).filter(Boolean);
 
   const now = Date.now();
   return games
@@ -104,42 +155,10 @@ export async function findGame(sport, eventId) {
   return games.find((g) => g.id === eventId) || null;
 }
 
-// Final scores from the last 3 days, keyed by event id.
-export async function getScores(sport) {
-  if (!hasOddsKey()) return {};
-  const raw = await cached(`scores:${sport}`, () =>
-    oddsApi(`${SPORTS[sport].key}/scores`, { daysFrom: '3' }),
-  );
-  const out = {};
-  for (const g of raw) {
-    if (!g.completed || !g.scores) continue;
-    const score = Object.fromEntries(g.scores.map((s) => [s.name, Number(s.score)]));
-    out[g.id] = { home: g.home_team, away: g.away_team, score };
-  }
-  return out;
-}
-
-// ---- Demo data -----------------------------------------------------------
-// Used when ODDS_API_KEY isn't set, so the app still runs locally.
-
-const MOCK_TEAMS = {
-  nfl:   [['Buffalo Bills', 'Kansas City Chiefs'], ['Philadelphia Eagles', 'Dallas Cowboys'], ['Detroit Lions', 'Green Bay Packers'], ['Pittsburgh Steelers', 'Baltimore Ravens']],
-  ncaaf: [['Ohio State Buckeyes', 'Michigan Wolverines'], ['Georgia Bulldogs', 'Alabama Crimson Tide'], ['Texas Longhorns', 'Oklahoma Sooners']],
-  mlb:   [['Los Angeles Dodgers', 'New York Yankees'], ['Philadelphia Phillies', 'Atlanta Braves']],
-  nba:   [['Boston Celtics', 'Denver Nuggets'], ['Oklahoma City Thunder', 'New York Knicks']],
-};
-const MOCK_PRICES = [[-150, 130], [110, -130], [-240, 195], [-105, -115]];
-
-function mockGames(sport) {
-  const day = Math.floor(Date.now() / 86_400_000);
-  return (MOCK_TEAMS[sport] || []).map(([home, away], i) => {
-    const [h, a] = MOCK_PRICES[i % MOCK_PRICES.length];
-    return {
-      id: `mock-${sport}-${day}-${i}`,
-      sport, home, away,
-      commence: new Date((day + 1) * 86_400_000 + i * 3 * 3_600_000).toISOString(),
-      book: 'Demo odds',
-      prices: { [home]: h, [away]: a },
-    };
-  });
+// How a market settled: 'yes', 'no', 'void', or null if it isn't final yet.
+export async function marketResult(ticker) {
+  const { market } = await kalshi(`/markets/${encodeURIComponent(ticker)}`);
+  if (!['finalized', 'settled'].includes(market?.status)) return null;
+  if (market.result === 'yes' || market.result === 'no') return market.result;
+  return 'void';
 }

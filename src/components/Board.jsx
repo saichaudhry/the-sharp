@@ -13,6 +13,22 @@ export const SPORTS = [
 ];
 
 const SPORT_KEY = 'the-sharp:sport';
+
+// Groups games under "Today", "Tomorrow", "Sat, Oct 10" headers (college has dozens).
+function byDay(games) {
+  const groups = new Map();
+  for (const g of games) {
+    const d = new Date(g.commence);
+    const today = new Date();
+    const diff = Math.round((new Date(d.toDateString()) - new Date(today.toDateString())) / 86_400_000);
+    const label = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(g);
+  }
+  return [...groups];
+}
+
+const compact = (n) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const savedSport = () => {
   try { return SPORTS.find((s) => s.id === localStorage.getItem(SPORT_KEY))?.id || 'nfl'; } catch { return 'nfl'; }
 };
@@ -20,7 +36,7 @@ const savedSport = () => {
 export default function Board() {
   const { player, onPlaced } = useApp();
   const [sport, setSport] = useState(savedSport);
-  const [state, setState] = useState({ status: 'loading', games: [], demo: false });
+  const [state, setState] = useState({ status: 'loading', games: [] });
   const [slip, setSlip] = useState(null); // { game, team }
   const [reload, setReload] = useState(0);
 
@@ -29,7 +45,7 @@ export default function Board() {
     let cancelled = false; // ignore a slow response if the user already switched sports
     setState((s) => ({ ...s, status: 'loading' }));
     api(`odds?sport=${sport}`)
-      .then((d) => !cancelled && setState({ status: 'ready', games: d.games, demo: d.demo }))
+      .then((d) => !cancelled && setState({ status: 'ready', games: d.games }))
       .catch((err) => !cancelled && setState({ status: 'error', games: [], error: err.message }));
     return () => { cancelled = true; };
   }, [sport, reload]);
@@ -38,7 +54,7 @@ export default function Board() {
     <div className="board">
       <div className="section-head">
         <h2>The Board</h2>
-        {state.demo && <span className="tag" title="No Odds API key configured, showing sample games">Demo odds</span>}
+        <span className="tag" title="Live prices from Kalshi's public market data">Kalshi live</span>
       </div>
 
       <div className="sport-tabs" role="tablist">
@@ -73,13 +89,15 @@ export default function Board() {
         </div>
       )}
 
-      {state.status === 'ready' && state.games.length > 0 && (
-        <div className="games">
-          {state.games.map((g) => (
+      {state.status === 'ready' && byDay(state.games).map(([day, games]) => (
+        <div key={day} className="day-group">
+          <h3 className="day-head">{day} <span className="muted small">{games.length} game{games.length > 1 ? 's' : ''}</span></h3>
+          <div className="games">
+          {games.map((g) => (
             <article key={g.id} className="game">
               <div className="game-meta">
                 <span>{kickoff(g.commence)}</span>
-                <span className="muted">{g.book}</span>
+                <span className="muted">{g.volume ? `$${compact(g.volume)} traded` : g.book}</span>
               </div>
               {[g.away, g.home].map((team) => (
                 <button key={team} className="side" onClick={() => setSlip({ game: g, team })}>
@@ -87,7 +105,7 @@ export default function Board() {
                     {team}
                     {team === g.home && <small className="muted"> home</small>}
                   </span>
-                  <span className="prob muted">{Math.round(impliedProb(g.prices[team]) * 100)}%</span>
+                  <span className="prob muted">{g.cents?.[team] ?? Math.round(impliedProb(g.prices[team]) * 100)}¢</span>
                   <span className={`price ${g.prices[team] > 0 ? 'dog' : 'fav'}`}>{fmtPrice(g.prices[team])}</span>
                 </button>
               ))}
@@ -96,8 +114,9 @@ export default function Board() {
               </Link>
             </article>
           ))}
+          </div>
         </div>
-      )}
+      ))}
 
       {slip && (
         <BetSlip

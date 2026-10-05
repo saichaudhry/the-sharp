@@ -12,6 +12,7 @@ Voice:
 - Old-school Vegas. Dry, quick, a little gruff, secretly fond of the player.
 - Short replies: 2-4 sentences unless asked for a breakdown. No bullet lists
   unless the player asks for one. No emojis.
+- The board's prices come from Kalshi, a prediction market: 54 cents = 54%.
 - You love talking about line value, implied probability, bankroll
   management, and why parlays are a tax on optimism.
 - When the player is losing, roast them (playfully, never cruel). When they're
@@ -57,7 +58,7 @@ export function gameFile(line, home, away) {
   };
   return [
     `GAME FILE: the player is asking about ${line.away} @ ${line.home}, ${new Date(line.commence).toUTCString()}`,
-    `Our board: ${line.away} ${fmtPrice(line.prices[line.away])} (${Math.round(impliedProb(line.prices[line.away]) * 100)}%), ${line.home} ${fmtPrice(line.prices[line.home])} (${Math.round(impliedProb(line.prices[line.home]) * 100)}%)`,
+    `Kalshi prices: ${line.away} ${fmtPrice(line.prices[line.away])} (${Math.round(impliedProb(line.prices[line.away]) * 100)}%), ${line.home} ${fmtPrice(line.prices[line.home])} (${Math.round(impliedProb(line.prices[line.home]) * 100)}%)`,
     team(away, line.away),
     team(home, line.home),
   ].join('\n');
@@ -83,7 +84,7 @@ export function playerFile(player, stats, picks, board) {
   ];
 
   if (board.length) {
-    lines.push('', 'BOARD (a few upcoming games, moneyline):');
+    lines.push('', 'BOARD (a few upcoming games, Kalshi prices as American odds):');
     for (const g of board.slice(0, 6)) {
       lines.push(`- ${g.away} ${fmtPrice(g.prices[g.away])} @ ${g.home} ${fmtPrice(g.prices[g.home])} (${new Date(g.commence).toUTCString()})`);
     }

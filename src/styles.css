@@ -698,3 +698,8 @@ a.hero-team:hover { background: rgba(255, 255, 255, 0.04); }
   .form-date { display: none; }
   .form-game { grid-template-columns: auto auto 1fr auto; }
 }
+
+/* Board day groups */
+.day-group + .day-group { margin-top: 18px; }
+.day-head { font-size: 20px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+.tag { color: var(--green); border-color: var(--green-dim); }

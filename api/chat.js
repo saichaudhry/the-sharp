@@ -6,7 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db, handle, HttpError, unwrap } from './_lib/db.js';
 import { requirePlayer, summarize } from './_lib/player.js';
 import { findGame, getGames, SPORTS } from './_lib/odds.js';
-import { findTeamId, getTeam } from './_lib/espn.js';
+import { getTeam } from './_lib/espn.js';
 import { gameFile, PERSONA, playerFile } from './_lib/persona.js';
 
 const MODEL = 'claude-opus-5-5';
@@ -100,12 +100,10 @@ export default handle({
 async function buildGameFile(sport, gameId) {
   const line = await findGame(sport, gameId);
   if (!line) return null;
-  const load = async (name) => {
-    const id = await findTeamId(sport, name);
-    if (!id) return null;
-    const t = await getTeam(sport, id);
-    return { ...t, recent: t.schedule.filter((g) => g.result).slice(-5).reverse() };
+  const load = async (id) => {
+    const t = await getTeam(sport, id).catch(() => null);
+    return t && { ...t, recent: t.schedule.filter((g) => g.result).slice(-5).reverse() };
   };
-  const [home, away] = await Promise.all([load(line.home), load(line.away)]);
+  const [home, away] = await Promise.all([load(line.espn.homeId), load(line.espn.awayId)]);
   return gameFile(line, home, away);
 }

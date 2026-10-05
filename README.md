@@ -11,10 +11,10 @@
 ## What it does
 
 TODO (your words). Points worth covering:
-- You get $1,000 in play money and pick moneyline winners from live NFL / college football / MLB / NBA odds.
-- Picks are saved in a database and graded automatically from real final scores.
+- You get $1,000 in play money and pick winners at live Kalshi prediction-market prices (NFL / college football / MLB / NBA).
+- Picks are saved in a database and graded automatically from Kalshi's official market results.
 - Lou, the AI character, sees your actual record and recent picks, so he remembers you between visits.
-- How this differs from my HW3/HW4 Gridiron Board (that one *displays* Kalshi markets; this one is a persistent game with a character and a ledger).
+- How this differs from my HW3/HW4 Gridiron Board. Both read Kalshi + ESPN, so make this argument clearly: that one is a read-only market browser; this one is a persistent game (accounts, a bankroll ledger in Postgres, settlement, an AI character with memory, team/game hubs) on a different stack.
 
 ## How to use it
 
@@ -29,7 +29,7 @@ TODO (your words). Candidates:
 - Bankroll updates happen inside Postgres functions (`schema.sql`), so double clicks can't double-spend or double-pay.
 - Lou's memory (`api/_lib/persona.js`): the player file built from the DB on each message.
 - Lou's face changes with your results (`src/components/LouAvatar.jsx`).
-- Free-tier Odds API budget protected by a 10-minute cache.
+- Kalshi games are matched to ESPN's schedule (Kalshi only gives names like "New York J"), which gives full team names, kickoff times and the stats hub links.
 - Game and team hubs (records, coach, roster, injuries, schedule, stats) built from ESPN's public API.
 - "Ask Lou about this game" feeds him that game's real stats, so his pick is argued from data.
 
@@ -38,7 +38,7 @@ TODO (your words). Candidates:
 ```
 React (Vite)  ──fetch──▶  /api/*  (Vercel serverless functions, Node)
                                ├── Supabase Postgres (players, picks, messages, api_cache)
-                               ├── The Odds API (odds + scores, cached 10 min)
+                               ├── Kalshi public API (game-winner prices + results, no key)
                                ├── ESPN public API (teams, rosters, injuries, schedules, game pages)
                                └── Claude API (Lou's replies)
 ```
@@ -70,11 +70,10 @@ TODO: list the specific changes you made by hand (file + what + why).
 ### Setup
 
 1. `npm install`
-2. Create a Supabase project. In **SQL Editor**, paste and run `schema.sql`.
+2. Create a Supabase project. In **SQL Editor**, paste and run `schema.sql` (safe to re-run).
 3. `cp .env.example .env.local` and fill in:
    - `ANTHROPIC_API_KEY`
    - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API)
-   - `ODDS_API_KEY` (optional; without it the board shows built-in demo games and picks don't settle)
 4. `npm run dev` → http://localhost:5180
 
 `npm run dev` serves both the React app and the `/api` functions. A small plugin in `vite.config.js` runs the files in `/api` the same way Vercel does, so no Vercel CLI is needed locally.
@@ -82,7 +81,7 @@ TODO: list the specific changes you made by hand (file + what + why).
 ### Deploy (Vercel)
 
 1. Push to GitHub, then on vercel.com: **Add New → Project → import the repo**. Framework is detected as Vite.
-2. Add the same four environment variables under **Settings → Environment Variables**.
+2. Add the same three environment variables under **Settings → Environment Variables**.
 3. Deploy. Every push to `main` redeploys.
 
 ### API
@@ -91,13 +90,13 @@ All endpoints return JSON. Errors are `{"error": "message"}`. Every endpoint exc
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/odds?sport=nfl` | Upcoming games + moneyline prices (`nfl`, `ncaaf`, `mlb`, `nba`) |
+| GET | `/api/odds?sport=nfl` | Upcoming games with Kalshi prices in cents and American odds (`nfl`, `ncaaf`, `mlb`, `nba`) |
 | POST | `/api/me` `{name}` | Create a player with $1,000 |
 | GET | `/api/me` | Player, stats and picks |
 | POST | `/api/picks` `{sport, eventId, team, stake}` | Place a pick at the server's current price |
-| POST | `/api/settle` | Grade finished games, pay out, auto-rebuy if busted |
+| POST | `/api/settle` | Grade picks from Kalshi market results, pay out, auto-rebuy if busted |
 | GET | `/api/team?sport=nfl&id=2` (or `&name=`) | Team hub: record, coach, roster, injuries, schedule, stats |
-| GET | `/api/game?sport=nfl&id=<odds id>` | Game hub: our line + both teams + ESPN game page |
+| GET | `/api/game?sport=nfl&id=<Kalshi event ticker>` | Game hub: our line + both teams + ESPN game page |
 | GET | `/api/chat` | Chat history |
 | POST | `/api/chat` `{message, context?}` | Talk to Lou (max 500 chars, 6/min). `context: {sport, gameId}` adds that game's stats |
 
@@ -109,7 +108,7 @@ ESPN's site API (`site.api.espn.com`) is public but undocumented, so it could ch
 api/
   _lib/db.js        Supabase client, HttpError, handle() wrapper for JSON errors
   _lib/player.js    player-id header, stats summary
-  _lib/odds.js      The Odds API client, caching, demo data
+  _lib/odds.js      Kalshi client: open game markets -> matched to ESPN -> board games; market results
   _lib/persona.js   Lou's system prompt + the "player file" / "game file" memory blocks
   _lib/espn.js      ESPN client: team/game data flattened for the hub pages
   me.js odds.js picks.js settle.js chat.js team.js game.js   one serverless function each

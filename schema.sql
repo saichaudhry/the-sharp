@@ -15,7 +15,7 @@ create table if not exists players (
 create table if not exists picks (
   id             bigint generated always as identity primary key,
   player_id      uuid not null references players(id) on delete cascade,
-  event_id       text not null,               -- The Odds API event id
+  event_id       text not null,               -- Kalshi event ticker
   sport          text not null,               -- our short key: nfl, ncaaf, mlb, nba
   home_team      text not null,
   away_team      text not null,
@@ -40,17 +40,13 @@ create table if not exists messages (
 );
 create index if not exists messages_player_idx on messages (player_id, created_at desc);
 
--- Shared cache so we don't burn The Odds API free tier (500 requests/month).
-create table if not exists api_cache (
-  key         text primary key,
-  data        jsonb not null,
-  fetched_at  timestamptz not null default now()
-);
+-- Which Kalshi market a pick bought (e.g. KXNFLGAME-26OCT05ATLNO-NO).
+-- Settlement reads that market's official result.
+alter table picks add column if not exists market_ticker text;
 
 alter table players   enable row level security;
 alter table picks     enable row level security;
 alter table messages  enable row level security;
-alter table api_cache enable row level security;
 
 -- Placing a pick has to take money out of the bankroll and insert the pick
 -- together. Doing it in one function means two quick clicks can't both spend

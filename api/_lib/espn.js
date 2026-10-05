@@ -76,7 +76,12 @@ async function espn(path, ttlMinutes = 5) {
 }
 
 const kind = (sport) => ESPN_PATH[sport].split('/')[0]; // football | baseball | basketball
-const logoOf = (team) => team?.logos?.[0]?.href || team?.logo || null;
+// Prefer ESPN's dark-background logo (black logos vanish on our dark theme).
+const logoOf = (team) => {
+  const logos = team?.logos || [];
+  const dark = logos.find((l) => l.rel?.includes('dark') && !l.rel.includes('scoreboard'));
+  return (dark || logos[0])?.href || team?.logo || null;
+};
 const color = (hex) => (hex && /^[0-9a-f]{6}$/i.test(hex) ? `#${hex}` : null);
 
 // ---- Team lookup by name (Odds API names -> ESPN ids) ---------------------
@@ -237,13 +242,31 @@ function easternDate(iso, offsetDays = 0) {
   return parts.replaceAll('-', '');
 }
 
-// Finds the ESPN event for a matchup from The Odds API.
-export async function findEventId(sport, homeId, awayId, commence) {
+// One day of games (date = YYYYMMDD, US Eastern). Used to match Kalshi games to ESPN.
+export async function scoreboard(sport, date) {
   const extra = sport === 'ncaaf' ? '&groups=80&limit=300' : '&limit=300'; // groups=80 = all of FBS, not just the top 25
+  const board = await espn(`${ESPN_PATH[sport]}/scoreboard?dates=${date}${extra}`);
+  return (board.events || []).map((e) => ({
+    id: e.id,
+    date: e.date,
+    state: e.competitions[0].status?.type?.state,
+    competitors: e.competitions[0].competitors.map((c) => ({
+      id: c.team.id,
+      homeAway: c.homeAway,
+      name: c.team.displayName,
+      short: c.team.shortDisplayName,
+      location: c.team.location,
+      abbr: c.team.abbreviation,
+    })),
+  }));
+}
+
+// Finds the ESPN event for a matchup when we only know the two teams and a time.
+export async function findEventId(sport, homeId, awayId, commence) {
   for (const offset of [0, -1, 1]) {
-    const board = await espn(`${ESPN_PATH[sport]}/scoreboard?dates=${easternDate(commence, offset)}${extra}`).catch(() => null);
-    const match = board?.events?.find((e) => {
-      const ids = e.competitions[0].competitors.map((c) => c.team.id);
+    const games = await scoreboard(sport, easternDate(commence, offset)).catch(() => []);
+    const match = games.find((e) => {
+      const ids = e.competitors.map((c) => c.id);
       return ids.includes(homeId) && ids.includes(awayId);
     });
     if (match) return match.id;

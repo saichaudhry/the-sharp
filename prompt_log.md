@@ -60,11 +60,24 @@ Claude first probed ESPN's public (undocumented) site API to see what data exist
 - "Ask Lou about this game" now sends a GAME FILE (records, form, injuries, key stats, implied odds) with the question, so Lou's breakdown uses real numbers.
 - Checked every page in headless Chrome at desktop and phone sizes. This caught an "Invalid hook call" crash caused by Vite's stale dependency cache after installing react-router (fixed by restarting with `--force`).
 
-## Session 2: TODO date, setup and deploy
+## Session 2: Mon 10/5, switch prices to Kalshi (Claude Code, Opus 5.5)
+
+**Prompt 6:**
+```
+use kalshi api, i hvae stored pull it
+```
+Claude found my Kalshi key at `~/.kalshi/kalshi_key.pem` but chose not to use it. Game-winner prices are on Kalshi's public API with no key, and that key reaches my real Kalshi account, so it shouldn't go anywhere near a deployed app. It then:
+- rewrote `api/_lib/odds.js` to read open `KXNFLGAME` / `KXNCAAFGAME` / `KXMLBGAME` / `KXNBAGAME` events, kept the same `getGames` / `findGame` interface so the rest of the app didn't change
+- matched each Kalshi game to ESPN's scoreboard for that day (Kalshi only says "New York J" / "Chicago WS" and has no kickoff time), which also gives the ESPN ids for the hubs
+- price rule: pay the ask when the spread is at most 5¢, else the midpoint; skip dead markets
+- settlement now reads each pick's Kalshi market result (`yes` / `no`), stored in a new `market_ticker` column
+- removed the Odds API key and the fake demo games
+
+## Session 3: TODO date, setup and deploy
 
 TODO: Supabase setup, env vars, first deploy, any errors hit and the prompts you used to fix them (verbatim).
 
-## Session 3: TODO date, my own changes
+## Session 4: TODO date, my own changes
 
 TODO: the changes you made by hand (e.g. rewriting Lou's persona, changing the roast thresholds in `moodFor`, adding a feature) and any prompts.
 

@@ -181,13 +181,13 @@ export default function GameHub() {
       <section className="bet-strip">
         {[line.away, line.home].map((team) => (
           <button key={team} className="bet-side" onClick={() => setSlip({ game: line, team })} disabled={started}>
-            <span className="small muted">{team === line.home ? 'Home' : 'Away'} · {started ? 'betting closed' : `${Math.round(impliedProb(line.prices[team]) * 100)}% implied`}</span>
+            <span className="small muted">{team === line.home ? 'Home' : 'Away'} · {started ? 'betting closed' : `Kalshi ${line.cents?.[team] ?? Math.round(impliedProb(line.prices[team]) * 100)}¢`}</span>
             <span className="bet-team">{team}</span>
             <span className={`price big ${line.prices[team] > 0 ? 'dog' : 'fav'}`}>{fmtPrice(line.prices[team])}</span>
           </button>
         ))}
         <div className="line-info small">
-          <span className="muted">{line.book}</span>
+          <span className="muted">{line.book}{line.volume ? ` · $${line.volume.toLocaleString()} traded` : ''}</span>
           {event?.line && (
             <span>
               {event.line.provider}: {event.line.details}
@@ -202,7 +202,7 @@ export default function GameHub() {
 
       {!event && (
         <p className="muted small notice">
-          ESPN doesn't have a game page for this matchup yet, so you're seeing each team's season data.
+          ESPN's game page didn't load, so you're seeing each team's season data.
         </p>
       )}
 

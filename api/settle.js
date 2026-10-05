@@ -1,25 +1,26 @@
 // POST /api/settle -> grade this player's finished games and pay out.
 // The frontend calls this on page load, so results show up next visit.
+// Results come from Kalshi: each pick remembers the market it bought, and a
+// finalized market's result is "yes" (that team won) or "no".
 import { db, handle, unwrap } from './_lib/db.js';
 import { requirePlayer, round2, STARTING_BANKROLL } from './_lib/player.js';
-import { getScores, hasOddsKey } from './_lib/odds.js';
+import { marketResult } from './_lib/odds.js';
 import { loadProfile } from './me.js';
 
-const VOID_AFTER_DAYS = 3; // scores endpoint only looks back 3 days
+const REFUND_AFTER_DAYS = 4; // never got a result (cancelled game, missing ticker): give the stake back
 
 // Profit on a winning bet at American odds.
 export function profitOn(stake, price) {
   return price > 0 ? stake * (price / 100) : stake * (100 / -price);
 }
 
-// Decides one pick's result from a final score. Exported so it's easy to test.
-export function grade(pick, game) {
-  const mine = game.score[pick.team];
-  const other = game.score[pick.team === pick.home_team ? pick.away_team : pick.home_team];
-  if (mine == null || other == null) return null;
-  if (mine === other) return { status: 'push', payout: Number(pick.stake) };
-  if (mine > other) return { status: 'won', payout: round2(Number(pick.stake) + profitOn(Number(pick.stake), pick.price)) };
-  return { status: 'lost', payout: 0 };
+// Turns a Kalshi result into our pick result. Exported so it's easy to test.
+export function grade(pick, result) {
+  const stake = Number(pick.stake);
+  if (result === 'yes') return { status: 'won', payout: round2(stake + profitOn(stake, pick.price)) };
+  if (result === 'no') return { status: 'lost', payout: 0 };
+  if (result === 'void') return { status: 'push', payout: stake };
+  return null;
 }
 
 export default handle({
@@ -27,40 +28,31 @@ export default handle({
     const player = await requirePlayer(req);
     const settled = [];
 
-    if (hasOddsKey()) {
-      const pending = unwrap(
-        await db().from('picks').select('*')
-          .eq('player_id', player.id).eq('status', 'pending')
-          .lt('commence_time', new Date().toISOString()),
-      );
+    const pending = unwrap(
+      await db().from('picks').select('*')
+        .eq('player_id', player.id).eq('status', 'pending')
+        .lt('commence_time', new Date().toISOString()),
+    );
 
-      // One scores request per sport, not per pick.
-      const sports = [...new Set(pending.map((p) => p.sport))];
-      // If the scores feed is down or out of quota, skip that sport this time
-      // instead of failing the whole request. Picks just stay open until next visit.
-      const scores = Object.fromEntries(
-        await Promise.all(sports.map(async (s) => {
-          try { return [s, await getScores(s)]; }
-          catch (err) { console.error(`[settle] scores for ${s} failed:`, err.message); return [s, null]; }
-        })),
-      );
-
-      for (const pick of pending) {
-        if (!scores[pick.sport]) continue;
-        const game = scores[pick.sport][pick.event_id];
-        let result = game ? grade(pick, game) : null;
-
-        const ageDays = (Date.now() - new Date(pick.commence_time)) / 86_400_000;
-        if (!result && ageDays > VOID_AFTER_DAYS) {
-          result = { status: 'push', payout: Number(pick.stake) }; // never found a score: refund
-        }
-        if (!result) continue;
-
-        const { data: ok } = await db().rpc('settle_pick', {
-          p_pick: pick.id, p_status: result.status, p_payout: result.payout,
+    for (const pick of pending) {
+      let result = null;
+      if (pick.market_ticker) {
+        // If Kalshi is down, skip this pick for now. It stays open until the next visit.
+        result = await marketResult(pick.market_ticker).catch((err) => {
+          console.error(`[settle] ${pick.market_ticker}:`, err.message);
+          return null;
         });
-        if (ok) settled.push({ ...pick, ...result });
       }
+      let outcome = grade(pick, result);
+
+      const ageDays = (Date.now() - new Date(pick.commence_time)) / 86_400_000;
+      if (!outcome && ageDays > REFUND_AFTER_DAYS) outcome = { status: 'push', payout: Number(pick.stake) };
+      if (!outcome) continue;
+
+      const { data: ok } = await db().rpc('settle_pick', {
+        p_pick: pick.id, p_status: outcome.status, p_payout: outcome.payout,
+      });
+      if (ok) settled.push({ ...pick, ...outcome });
     }
 
     // Busted with nothing left in play? Lou spots you a fresh bankroll (and remembers it).
