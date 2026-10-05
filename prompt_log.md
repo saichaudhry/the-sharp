@@ -96,6 +96,12 @@ Claude pushed the repo first (after scanning git history for keys), then:
 
 **AI got it wrong (candidate for the section below):** Claude's first settlement rewrite returned nothing. It had written `const { markets } = await kalshi('/events/...?with_nested_markets=true')`, but with that flag Kalshi puts the markets under `event.markets` and leaves the top-level `markets` empty. Claude's own earlier probe had printed exactly that (`nested 2 top 0`), and it still read the wrong field. The real-game settlement test caught it.
 
+**Prompt 10:**
+```
+okay lets sepreate the project keep this version but recreate the version from before,
+```
+I chose (in Claude's form) the version from before the redesign (commit `ce1f69c`), as a new folder and repo: [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic). Claude carried the tested settlement fix over to it. This repo stays the redesigned version.
+
 ## Session 3: TODO date, setup and deploy
 
 TODO: Supabase setup, env vars, first deploy, any errors hit and the prompts you used to fix them (verbatim).
