@@ -34,7 +34,7 @@ export default function BetSlip({ game, team, bankroll, onClose, onPlaced, onSta
         method: 'POST',
         body: { sport: game.sport, eventId: game.id, team, stake: amount },
       });
-      onPlaced(data, { team, stake: amount });
+      onPlaced(data, { team, stake: amount, context: { sport: game.sport, gameId: game.id } });
     } catch (err) {
       if (err.status === 409) return onStale();
       setError(err.message);

@@ -17,6 +17,7 @@ export default function Sharp({ stats, picks, draft, onDraftUsed }) {
   const [error, setError] = useState(null);
   const logRef = useRef(null);
   const inputRef = useRef(null);
+  const contextRef = useRef(null); // which game the next question is about, if any
 
   useEffect(() => {
     api('chat')
@@ -27,7 +28,8 @@ export default function Sharp({ stats, picks, draft, onDraftUsed }) {
   // "Ask Lou" from the bet toast pre-fills the box.
   useEffect(() => {
     if (draft) {
-      setInput(draft);
+      setInput(draft.text);
+      contextRef.current = draft.context;
       onDraftUsed();
       inputRef.current?.focus();
     }
@@ -44,13 +46,16 @@ export default function Sharp({ stats, picks, draft, onDraftUsed }) {
     setError(null);
     setInput('');
     setMessages((m) => [...(m || []), { role: 'user', content: message }]);
+    const context = contextRef.current;
+    contextRef.current = null;
     try {
-      const { reply } = await api('chat', { method: 'POST', body: { message } });
+      const { reply } = await api('chat', { method: 'POST', body: { message, ...(context && { context }) } });
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } catch (err) {
       // Put their message back so they don't lose it.
       setMessages((m) => m.slice(0, -1));
       setInput(message);
+      contextRef.current = context;
       setError(err.message);
     } finally {
       setBusy(false);

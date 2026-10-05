@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
+import { useApp } from '../context.js';
 import { fmtPrice, kickoff, impliedProb } from '../format.js';
 import BetSlip from './BetSlip.jsx';
 
-const SPORTS = [
+export const SPORTS = [
   { id: 'nfl', label: 'NFL' },
   { id: 'ncaaf', label: 'College FB' },
   { id: 'mlb', label: 'MLB' },
   { id: 'nba', label: 'NBA' },
 ];
 
-export default function Board({ bankroll, onPlaced }) {
-  const [sport, setSport] = useState('nfl');
+const SPORT_KEY = 'the-sharp:sport';
+const savedSport = () => {
+  try { return SPORTS.find((s) => s.id === localStorage.getItem(SPORT_KEY))?.id || 'nfl'; } catch { return 'nfl'; }
+};
+
+export default function Board() {
+  const { player, onPlaced } = useApp();
+  const [sport, setSport] = useState(savedSport);
   const [state, setState] = useState({ status: 'loading', games: [], demo: false });
   const [slip, setSlip] = useState(null); // { game, team }
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
+    try { localStorage.setItem(SPORT_KEY, sport); } catch { /* ignore */ }
     let cancelled = false; // ignore a slow response if the user already switched sports
     setState((s) => ({ ...s, status: 'loading' }));
     api(`odds?sport=${sport}`)
@@ -82,6 +91,9 @@ export default function Board({ bankroll, onPlaced }) {
                   <span className={`price ${g.prices[team] > 0 ? 'dog' : 'fav'}`}>{fmtPrice(g.prices[team])}</span>
                 </button>
               ))}
+              <Link className="game-link" to={`/game/${sport}/${encodeURIComponent(g.id)}`}>
+                Matchup hub: stats, injuries, form <span aria-hidden="true">›</span>
+              </Link>
             </article>
           ))}
         </div>
@@ -90,12 +102,9 @@ export default function Board({ bankroll, onPlaced }) {
       {slip && (
         <BetSlip
           {...slip}
-          bankroll={bankroll}
+          bankroll={Number(player.bankroll)}
           onClose={() => setSlip(null)}
-          onPlaced={(data, pick) => {
-            setSlip(null);
-            onPlaced(data, pick);
-          }}
+          onPlaced={(data, pick) => { setSlip(null); onPlaced(data, pick); }}
           onStale={() => { setSlip(null); setReload((n) => n + 1); }}
         />
       )}

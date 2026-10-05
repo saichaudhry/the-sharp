@@ -47,6 +47,19 @@ Before building, Claude checked my earlier projects (Gridiron Board / Ask the Bo
 
 TODO: add what you checked and changed after reading the code.
 
+Setup in the same session: I gave Claude the Supabase URL/secret and Anthropic key (it put them in the gitignored `.env.local`, and warned me to rotate them since I pasted them in chat). The first player creation failed with "Something went wrong on our end." because I hadn't run `schema.sql` yet; Claude changed the error so it says the tables are missing, and I ran the SQL in the Supabase SQL Editor. Claude then tested create player → place pick → chat end to end.
+
+**Prompt 5:**
+```
+let's build out this ux, for each tab let's have it go through into each site, build it out how you think but i am thinking it basically creates a whole hub of stats for each game/team and all necessary stats, injuries, coaching , record like imagine a madden portal but inside of this
+```
+Claude first probed ESPN's public (undocumented) site API to see what data exists for NFL, college football, MLB and NBA, then built:
+- `api/_lib/espn.js`: fetches and flattens ESPN team, roster, schedule, stats and game-summary data; matches Odds API team names to ESPN ids; matches games by Eastern-time date.
+- `api/team.js`, `api/game.js`: the two new endpoints.
+- React Router pages: `/game/:sport/:id` (matchup hub: tale of the tape, injuries, form, leaders, box stats, news, bet buttons) and `/team/:sport/:id` (team hub: overview, roster with search, injuries, schedule, all stats).
+- "Ask Lou about this game" now sends a GAME FILE (records, form, injuries, key stats, implied odds) with the question, so Lou's breakdown uses real numbers.
+- Checked every page in headless Chrome at desktop and phone sizes. This caught an "Invalid hook call" crash caused by Vite's stale dependency cache after installing react-router (fixed by restarting with `--force`).
+
 ## Session 2: TODO date, setup and deploy
 
 TODO: Supabase setup, env vars, first deploy, any errors hit and the prompts you used to fix them (verbatim).

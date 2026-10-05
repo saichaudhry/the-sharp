@@ -5,8 +5,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db, handle, HttpError, unwrap } from './_lib/db.js';
 import { requirePlayer, summarize } from './_lib/player.js';
-import { getGames } from './_lib/odds.js';
-import { PERSONA, playerFile } from './_lib/persona.js';
+import { findGame, getGames, SPORTS } from './_lib/odds.js';
+import { findTeamId, getTeam } from './_lib/espn.js';
+import { gameFile, PERSONA, playerFile } from './_lib/persona.js';
 
 const MODEL = 'claude-opus-5-5';
 const MAX_MESSAGE_CHARS = 500;
@@ -50,6 +51,14 @@ export default handle({
       getGames('nfl').catch(() => []),
     ]);
 
+    // If the question came from a game page, add that game's numbers.
+    const extra = [];
+    const ctx = req.body?.context;
+    if (ctx && SPORTS[ctx.sport] && typeof ctx.gameId === 'string' && ctx.gameId.length < 100) {
+      const brief = await buildGameFile(ctx.sport, ctx.gameId).catch(() => null);
+      if (brief) extra.push({ type: 'text', text: brief });
+    }
+
     // The API needs the conversation to start with a user turn.
     const turns = past.map(({ role, content }) => ({ role, content }));
     while (turns.length && turns[0].role !== 'user') turns.shift();
@@ -65,6 +74,7 @@ export default handle({
       system: [
         { type: 'text', text: PERSONA },
         { type: 'text', text: playerFile(player, summarize(picks), picks, board) },
+        ...extra,
       ],
       messages: [...turns, { role: 'user', content: message }],
     }).catch((err) => {
@@ -86,3 +96,16 @@ export default handle({
     return { reply };
   },
 });
+
+async function buildGameFile(sport, gameId) {
+  const line = await findGame(sport, gameId);
+  if (!line) return null;
+  const load = async (name) => {
+    const id = await findTeamId(sport, name);
+    if (!id) return null;
+    const t = await getTeam(sport, id);
+    return { ...t, recent: t.schedule.filter((g) => g.result).slice(-5).reverse() };
+  };
+  const [home, away] = await Promise.all([load(line.home), load(line.away)]);
+  return gameFile(line, home, away);
+}

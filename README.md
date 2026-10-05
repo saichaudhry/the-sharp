@@ -30,6 +30,8 @@ TODO (your words). Candidates:
 - Lou's memory (`api/_lib/persona.js`): the player file built from the DB on each message.
 - Lou's face changes with your results (`src/components/LouAvatar.jsx`).
 - Free-tier Odds API budget protected by a 10-minute cache.
+- Game and team hubs (records, coach, roster, injuries, schedule, stats) built from ESPN's public API.
+- "Ask Lou about this game" feeds him that game's real stats, so his pick is argued from data.
 
 ## Architecture
 
@@ -37,6 +39,7 @@ TODO (your words). Candidates:
 React (Vite)  ──fetch──▶  /api/*  (Vercel serverless functions, Node)
                                ├── Supabase Postgres (players, picks, messages, api_cache)
                                ├── The Odds API (odds + scores, cached 10 min)
+                               ├── ESPN public API (teams, rosters, injuries, schedules, game pages)
                                └── Claude API (Lou's replies)
 ```
 
@@ -93,8 +96,12 @@ All endpoints return JSON. Errors are `{"error": "message"}`. Every endpoint exc
 | GET | `/api/me` | Player, stats and picks |
 | POST | `/api/picks` `{sport, eventId, team, stake}` | Place a pick at the server's current price |
 | POST | `/api/settle` | Grade finished games, pay out, auto-rebuy if busted |
+| GET | `/api/team?sport=nfl&id=2` (or `&name=`) | Team hub: record, coach, roster, injuries, schedule, stats |
+| GET | `/api/game?sport=nfl&id=<odds id>` | Game hub: our line + both teams + ESPN game page |
 | GET | `/api/chat` | Chat history |
-| POST | `/api/chat` `{message}` | Talk to Lou (max 500 chars, 6/min) |
+| POST | `/api/chat` `{message, context?}` | Talk to Lou (max 500 chars, 6/min). `context: {sport, gameId}` adds that game's stats |
+
+ESPN's site API (`site.api.espn.com`) is public but undocumented, so it could change without notice. Every hub section degrades to an empty state if a piece is missing.
 
 ### Files
 
@@ -103,12 +110,14 @@ api/
   _lib/db.js        Supabase client, HttpError, handle() wrapper for JSON errors
   _lib/player.js    player-id header, stats summary
   _lib/odds.js      The Odds API client, caching, demo data
-  _lib/persona.js   Lou's system prompt + the "player file" memory block
-  me.js odds.js picks.js settle.js chat.js   one serverless function each
+  _lib/persona.js   Lou's system prompt + the "player file" / "game file" memory blocks
+  _lib/espn.js      ESPN client: team/game data flattened for the hub pages
+  me.js odds.js picks.js settle.js chat.js team.js game.js   one serverless function each
 src/
   App.jsx           loads/settles the player, layout, mobile tabs
   api.js            fetch wrapper + player id in localStorage
   format.js         odds math and formatting
-  components/       Board, BetSlip, Picks, StatsCard, ProfitChart, Sharp (chat), LouAvatar, Onboarding, Toast
+  pages/            GameHub, TeamHub (routed with React Router)
+  components/       Board, BetSlip, Picks, StatsCard, ProfitChart, Sharp (chat), LouAvatar, Onboarding, Toast, hub (shared hub pieces)
 schema.sql          tables, row-level security, place_pick / settle_pick functions
 ```

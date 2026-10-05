@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fmtPrice, money, kickoff, profitOn } from '../format.js';
 
 const FILTERS = [
@@ -38,8 +39,14 @@ export default function Picks({ picks }) {
             return (
               <li key={p.id} className={`pick ${p.status}`}>
                 <div className="pick-main">
-                  <strong>{p.team}</strong> <span className="price-inline">{fmtPrice(p.price)}</span>
-                  <div className="muted small">vs {opponent} · {kickoff(p.commence_time)}</div>
+                  <Link to={`/team/${p.sport}/${encodeURIComponent(p.team)}`} className="pick-team">{p.team}</Link>{' '}
+                  <span className="price-inline">{fmtPrice(p.price)}</span>
+                  <div className="muted small">
+                    vs {opponent} · {kickoff(p.commence_time)}
+                    {p.status === 'pending' && new Date(p.commence_time) > new Date() && (
+                      <> · <Link to={`/game/${p.sport}/${encodeURIComponent(p.event_id)}`}>matchup ›</Link></>
+                    )}
+                  </div>
                 </div>
                 <div className="pick-side">
                   <span className={`status ${p.status}`}>{p.status === 'pending' ? 'open' : p.status}</span>
