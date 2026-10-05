@@ -5,7 +5,7 @@ import { useApp } from '../context.js';
 import { fmtPrice, impliedProb, kickoff } from '../format.js';
 import BetSlip from '../components/BetSlip.jsx';
 import { FormStrip, Headshot, HubState, HubTabs, InjuryList, StatBars, TeamLogo, UpcomingList } from '../components/hub.jsx';
-import { readable } from '../colors.js';
+import { distinct, readable } from '../colors.js';
 
 export default function GameHub() {
   const { sport, id } = useParams();
@@ -30,8 +30,8 @@ export default function GameHub() {
   const side = (t, name) => t || { name, abbr: name.split(' ').pop().slice(0, 3).toUpperCase(), color: '#2b3a31', record: {}, injuries: [], recent: [], schedule: [], keyStats: [] };
   const H = side(home, line.home);
   const A = side(away, line.away);
-  const hc = readable(H.color, H.altColor);
   const ac = readable(A.color, A.altColor);
+  const hc = distinct(ac, readable(H.color, H.altColor), H.altColor);
   const live = event?.status?.state === 'in';
   const started = event?.status?.state && event.status.state !== 'pre';
 
@@ -136,8 +136,8 @@ export default function GameHub() {
           <table className="compare-table">
             <thead><tr><th>{A.abbr}</th><th /><th>{H.abbr}</th></tr></thead>
             <tbody>
-              {event.comparison.map((r) => (
-                <tr key={r.label}><td>{r.values[A.id] ?? '-'}</td><th scope="row">{r.label}</th><td>{r.values[H.id] ?? '-'}</td></tr>
+              {event.comparison.map((r, i) => (
+                <tr key={`${r.label}-${i}`}><td>{r.values[A.id] ?? '-'}</td><th scope="row">{r.label}</th><td>{r.values[H.id] ?? '-'}</td></tr>
               ))}
             </tbody>
           </table>
@@ -172,7 +172,7 @@ export default function GameHub() {
           <span className="at">@</span>
           {event?.venue && <span className="muted small">{event.venue.name}{event.venue.city ? `, ${event.venue.city}` : ''}</span>}
           {(event?.broadcast || event?.weather) && (
-            <span className="muted small">{[event.broadcast, event.weather && `${event.weather.temp}° ${event.weather.text}`].filter(Boolean).join(' · ')}</span>
+            <span className="muted small">{[event.broadcast, event.weather && `${event.weather.temp}°${event.weather.text ? ` ${event.weather.text}` : ''}`].filter(Boolean).join(' · ')}</span>
           )}
         </div>
         <HeroTeam team={H} sport={sport} score={started ? event.scores[H.id] : null} home />
@@ -181,7 +181,7 @@ export default function GameHub() {
       <section className="bet-strip">
         {[line.away, line.home].map((team) => (
           <button key={team} className="bet-side" onClick={() => setSlip({ game: line, team })} disabled={started}>
-            <span className="small muted">{team === line.home ? 'Home' : 'Away'} · {Math.round(impliedProb(line.prices[team]) * 100)}% implied</span>
+            <span className="small muted">{team === line.home ? 'Home' : 'Away'} · {started ? 'betting closed' : `${Math.round(impliedProb(line.prices[team]) * 100)}% implied`}</span>
             <span className="bet-team">{team}</span>
             <span className={`price big ${line.prices[team] > 0 ? 'dog' : 'fav'}`}>{fmtPrice(line.prices[team])}</span>
           </button>

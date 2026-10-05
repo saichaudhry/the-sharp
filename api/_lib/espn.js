@@ -263,7 +263,7 @@ export async function getEvent(sport, eventId) {
     venue: s.gameInfo?.venue
       ? { name: s.gameInfo.venue.fullName, city: [s.gameInfo.venue.address?.city, s.gameInfo.venue.address?.state].filter(Boolean).join(', '), indoor: s.gameInfo.venue.indoor ?? null }
       : null,
-    weather: s.gameInfo?.weather ? { temp: s.gameInfo.weather.temperature, text: s.gameInfo.weather.displayValue } : null,
+    weather: s.gameInfo?.weather?.temperature != null ? { temp: s.gameInfo.weather.temperature, text: s.gameInfo.weather.displayValue || '' } : null,
     broadcast: (s.broadcasts || []).map((b) => b.media?.shortName).filter(Boolean).join(', ') || null,
     line: pick
       ? {
