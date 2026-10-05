@@ -56,6 +56,8 @@ TODO: put the steps in your own words (the AI notes at the bottom have the detai
 
 TODO (your words): which keys exist, where they live (`.env.local` locally, Vercel env vars in production), why none of them reach the browser, and why `.env.local` is gitignored.
 
+Known limit worth mentioning: chat is rate-limited per player (6 messages/min), but `/api/panel` (four Claude calls per game) is only protected by a 10-minute per-game cache, so a determined visitor could still run up API cost. A real deployment would add a per-player limit there and a spending cap on the Anthropic key.
+
 ## How I used AI
 
 TODO (your words, a short summary, the full detail is in `prompt_log.md`). Cite: Claude Code (Claude Opus 5.5) generated the initial scaffold of the frontend and API; note which parts you rewrote or changed yourself.
