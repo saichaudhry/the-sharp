@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, newPlayerId, forgetPlayer } from '../api.js';
-import LouAvatar from './LouAvatar.jsx';
+import Face from './Face.jsx';
+import { PERSONAS } from '../personas.js';
 
 export default function Onboarding({ onReady }) {
   const [name, setName] = useState('');
@@ -25,14 +26,15 @@ export default function Onboarding({ onReady }) {
   return (
     <div className="center-screen onboarding">
       <div className="panel onboard-card">
-        <LouAvatar mood="neutral" size={112} />
-        <h1>The Sharp</h1>
+        <div className="onboard-faces">{PERSONAS.map((p) => <Face key={p.id} persona={p} size={64} />)}</div>
+        <span className="eyebrow">Play-money sports picks</span>
+        <h1>THE SHARP</h1>
         <p className="lede">
-          Lou Marchetti set Vegas lines for thirty years. Now he runs the advice desk.
-          You get <strong>$1,000 in play money</strong>. He remembers every pick you make.
+          Pick winners at live Kalshi prices with <strong>$1,000 in play money</strong>.
+          Four AI handicappers (an oddsmaker, a quant, a hype man and a contrarian) argue every game and remember every pick you make.
         </p>
         <form onSubmit={submit} className="onboard-form">
-          <label htmlFor="name">What should Lou call you?</label>
+          <label htmlFor="name">What should the desk call you?</label>
           <div className="row">
             <input
               id="name"

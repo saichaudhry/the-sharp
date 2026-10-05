@@ -73,6 +73,29 @@ Claude found my Kalshi key at `~/.kalshi/kalshi_key.pem` but chose not to use it
 - settlement now reads each pick's Kalshi market result (`yes` / `no`), stored in a new `market_ticker` column
 - removed the Odds API key and the fake demo games
 
+**Prompt 7** (my answers in Claude's multiple-choice form): push to `saichaudhry/the-sharp`, and add The Quant, The Hype Man and The Contrarian alongside Lou.
+```
+can we create multiple chat bots with different personalities we need tofully fnish site, settleemnts and open are all unfisinished make ux over there as well
+```
+
+**Prompt 8:**
+```
+https://novig.com/landing ,, copy the ui of these two sites https://novig.com
+```
+
+**Prompt 9:**
+```
+make full screen i dontl ike this phone like setup, have it that if you test on phone it fits but maek both
+```
+
+Claude pushed the repo first (after scanning git history for keys), then:
+- Settlement: dropped the planned `market_ticker` column. A pick already stores the Kalshi event ticker and team, so settlement fetches that event's two markets and picks the one for the team. Tested on a real finished game (Lions @ Panthers): the Carolina pick paid $260, the Detroit pick paid $0, bankroll $800 → $1,060.
+- Four characters with one shared RULES block, per-character chat threads, and an "Ask the desk" panel on game pages (all four picks, cached per game).
+- A real My Picks page: summary, profit chart, open picks with entry price vs Kalshi's price now, settled picks grouped by day, a "Check results" button.
+- Redesign modelled on Novig (Claude screenshotted both pages and pulled out the colours and fonts): ticker strip, sports sidebar, docked bet slip, price-history chart from Kalshi candlesticks, full-screen on desktop and a single column with a bottom tab bar on phones. Kept "The Sharp" name, no Novig logo.
+
+**AI got it wrong (candidate for the section below):** Claude's first settlement rewrite returned nothing. It had written `const { markets } = await kalshi('/events/...?with_nested_markets=true')`, but with that flag Kalshi puts the markets under `event.markets` and leaves the top-level `markets` empty. Claude's own earlier probe had printed exactly that (`nested 2 top 0`), and it still read the wrong field. The real-game settlement test caught it.
+
 ## Session 3: TODO date, setup and deploy
 
 TODO: Supabase setup, env vars, first deploy, any errors hit and the prompts you used to fix them (verbatim).

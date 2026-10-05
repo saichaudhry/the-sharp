@@ -257,6 +257,10 @@ export async function scoreboard(sport, date) {
       short: c.team.shortDisplayName,
       location: c.team.location,
       abbr: c.team.abbreviation,
+      logo: c.team.logo || null,
+      color: color(c.team.color),
+      altColor: color(c.team.alternateColor),
+      record: c.records?.[0]?.summary || null,
     })),
   }));
 }

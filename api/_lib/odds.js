@@ -125,6 +125,7 @@ async function toGame(sport, ev) {
     prices: byName((_, p) => toAmerican(p)),
     cents: byName((_, p) => Math.round(p * 100)),
     markets: byName((s) => s.market.ticker),
+    teams: Object.fromEntries(best.teams.map((t) => [t.name, { abbr: t.abbr, short: t.short, logo: t.logo, color: t.color, altColor: t.altColor, record: t.record }])),
     volume: Math.round(sides.reduce((v, s) => v + (Number(s.market.volume_fp) || 0), 0)),
     espn: { eventId: best.game.id, homeId: home.id, awayId: away.id },
   };
@@ -155,10 +156,41 @@ export async function findGame(sport, eventId) {
   return games.find((g) => g.id === eventId) || null;
 }
 
-// How a market settled: 'yes', 'no', 'void', or null if it isn't final yet.
-export async function marketResult(ticker) {
-  const { market } = await kalshi(`/markets/${encodeURIComponent(ticker)}`);
-  if (!['finalized', 'settled'].includes(market?.status)) return null;
+// Hourly YES price for one market over the last few days, in cents.
+export async function priceHistory(sport, ticker, days = 5) {
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - days * 86_400;
+  const data = await kalshi(`/series/${SPORTS[sport].series}/markets/${encodeURIComponent(ticker)}/candlesticks?start_ts=${start}&end_ts=${end}&period_interval=60`);
+  return (data.candlesticks || [])
+    .map((c) => ({ t: c.end_period_ts * 1000, c: Math.round(Number(c.price?.close_dollars ?? c.yes_ask?.close_dollars) * 100) }))
+    .filter((p) => p.c > 0);
+}
+
+// The Kalshi market a pick bought. A pick stores the event ticker and the full
+// team name, and each event has exactly two markets, so: take the market whose
+// name matches the team; if neither matches cleanly ("Chicago WS" vs "Chicago
+// White Sox"), take the one that does NOT match the opponent.
+export async function marketFor(pick) {
+  const data = await kalshi(`/events/${encodeURIComponent(pick.event_id)}?with_nested_markets=true`);
+  const markets = data.event?.markets || []; // nested markets live under event, not the top-level list
+  if (markets.length !== 2) return null;
+  const opponent = pick.team === pick.home_team ? pick.away_team : pick.home_team;
+  const score = (m, name) => matchScore({ abbr: m.ticker.split('-').pop(), name: m.yes_sub_title }, { name, short: '', location: name.split(' ')[0], abbr: '' });
+  const direct = markets.filter((m) => score(m, pick.team) >= 2);
+  if (direct.length === 1) return direct[0];
+  const notOpponent = markets.filter((m) => score(m, opponent) < 2);
+  return notOpponent.length === 1 ? notOpponent[0] : null;
+}
+
+// How a pick's market settled: 'yes', 'no', 'void', or null if it isn't final yet.
+export function resultOf(market) {
+  if (!market || !['finalized', 'settled'].includes(market.status)) return null;
   if (market.result === 'yes' || market.result === 'no') return market.result;
   return 'void';
+}
+
+// What the market says now, in cents (for "you got 47¢, it's 52¢ now").
+export function liveCents(market) {
+  const p = market && yesPrice(market);
+  return p ? Math.round(p * 100) : null;
 }

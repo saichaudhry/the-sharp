@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, getPlayerId, forgetPlayer } from './api.js';
 import { money } from './format.js';
 import { AppContext } from './context.js';
 import Onboarding from './components/Onboarding.jsx';
-import Board from './components/Board.jsx';
-import Picks from './components/Picks.jsx';
-import Sharp from './components/Sharp.jsx';
-import StatsCard from './components/StatsCard.jsx';
+import Board, { SPORTS } from './components/Board.jsx';
+import Desk from './components/Desk.jsx';
+import Slip from './components/Slip.jsx';
+import Ticker from './components/Ticker.jsx';
 import Toast from './components/Toast.jsx';
 import GameHub from './pages/GameHub.jsx';
 import TeamHub from './pages/TeamHub.jsx';
+import PicksPage from './pages/PicksPage.jsx';
 
 export default function App() {
   // profile = { player, stats, picks } from the API. undefined = still loading, null = new visitor.
@@ -48,109 +49,117 @@ export default function App() {
   if (loadError) {
     return (
       <div className="center-screen">
-        <div className="panel error-panel">
-          <h2>Lou's booth is closed</h2>
+        <div className="card error-panel">
+          <h2>The desk is closed</h2>
           <p>{loadError}</p>
           <button className="btn primary" onClick={load}>Try again</button>
         </div>
       </div>
     );
   }
-  if (profile === undefined) {
-    return <div className="center-screen"><div className="spinner" aria-label="Loading" /></div>;
-  }
+  if (profile === undefined) return <div className="center-screen"><div className="spinner" aria-label="Loading" /></div>;
   if (profile === null) return <Onboarding onReady={setProfile} />;
-
   return <Shell profile={profile} setProfile={setProfile} toast={toast} setToast={setToast} />;
 }
+
+const SPORT_KEY = 'the-sharp:sport';
+const savedSport = () => {
+  try { return SPORTS.find((s) => s.id === localStorage.getItem(SPORT_KEY))?.id || 'nfl'; } catch { return 'nfl'; }
+};
 
 function Shell({ profile, setProfile, toast, setToast }) {
   const { player, stats, picks } = profile;
   const location = useLocation();
   const navigate = useNavigate();
-  const onHome = location.pathname === '/';
-  // Mobile only: which section is on screen. 'main' = the current page.
-  const [tab, setTab] = useState('main');
-  const [askDraft, setAskDraft] = useState(null); // { text, context }
+  const [sport, setSportState] = useState(savedSport);
+  const [selection, setSelection] = useState(null); // { game, team } in the bet slip
+  const [askDraft, setAskDraft] = useState(null);   // { text, context, persona } for the desk
+  const onDesk = location.pathname === '/desk';
 
-  // Opening a game or team page always shows it, starting at the top.
-  useEffect(() => {
-    if (location.pathname !== '/') setTab('main');
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+  useEffect(() => { window.scrollTo(0, 0); document.querySelector('.main')?.scrollTo(0, 0); }, [location.pathname]);
 
-  const ctx = useMemo(() => ({
-    player,
-    // context (optional) = { sport, gameId } so Lou gets that game's stats with the question.
-    askLou: (text, context = null) => { setAskDraft({ text, context }); setTab('lou'); },
-    // After placing a pick from any page: update the bankroll and offer to ask Lou.
-    onPlaced: (data, pick) => {
-      setProfile(data);
-      setToast({
-        text: `Locked in: ${pick.team} for ${money(pick.stake)}`,
-        tone: 'neutral',
-        action: { label: 'Ask Lou', run: () => { setAskDraft({ text: `I just put ${money(pick.stake)} on the ${pick.team}. Thoughts?`, context: pick.context || null }); setTab('lou'); } },
-      });
-    },
-  }), [player, setProfile, setToast]);
-
-  function goTab(id) {
-    // "My Picks" lives on the home page, so jump there first.
-    if (id === 'picks' && !onHome) navigate('/');
-    setTab(id);
-  }
+  const ctx = useMemo(() => {
+    const askLou = (text, context = null, persona = null) => {
+      setAskDraft({ text, context, persona });
+      if (window.matchMedia('(max-width: 900px)').matches) navigate('/desk');
+    };
+    return {
+      player, profile, setProfile, sport, selection,
+      notify: setToast,
+      select: setSelection,
+      setSport: (id) => {
+        setSportState(id);
+        try { localStorage.setItem(SPORT_KEY, id); } catch { /* ignore */ }
+        navigate('/');
+      },
+      askLou,
+      // After placing a pick from any page: update the bankroll and offer a reaction.
+      onPlaced: (data, pick) => {
+        setProfile(data);
+        setToast({
+          text: `Locked in: ${pick.team} for ${money(pick.stake)}`,
+          tone: 'neutral',
+          action: { label: 'Ask the desk', run: () => askLou(`I just put ${money(pick.stake)} on the ${pick.team}. Thoughts?`, pick.context) },
+        });
+      },
+    };
+  }, [player, profile, setProfile, sport, selection, setToast, navigate]);
 
   return (
     <AppContext.Provider value={ctx}>
-      <div className="app" data-tab={tab}>
+      <div className={`app ${onDesk ? 'route-desk' : ''} ${selection ? 'has-slip' : ''}`}>
+        <Ticker />
+
         <header className="topbar">
-          <Link to="/" className="brand">
-            <span className="brand-mark">$</span>
-            <span className="brand-name">The Sharp</span>
-          </Link>
+          <Link to="/" className="brand"><span className="brand-mark">S</span><span className="wordmark">THE SHARP</span></Link>
+          <nav className="topnav">
+            <NavLink to="/" end>Board</NavLink>
+            <NavLink to="/picks">My Picks{stats.pending > 0 && <span className="badge">{stats.pending}</span>}</NavLink>
+          </nav>
           <div className="topbar-right">
             <span className="player-name">{player.name}</span>
-            <span className="bankroll-pill" title="Play-money bankroll">{money(player.bankroll)}</span>
+            <Link to="/picks" className="bankroll-pill" title="Play-money bankroll">{money(player.bankroll)}</Link>
           </div>
         </header>
 
-        <main className="layout">
-          <section className="col-main">
-            <Routes>
-              <Route path="/" element={
-                <>
-                  <div className="pane pane-main"><Board /></div>
-                  <div className="pane pane-picks"><Picks picks={picks} /></div>
-                </>
-              } />
-              <Route path="/game/:sport/:id" element={<div className="pane pane-main hub-pane"><GameHub /></div>} />
-              <Route path="/team/:sport/:key" element={<div className="pane pane-main hub-pane"><TeamHub /></div>} />
-              <Route path="*" element={
-                <div className="pane pane-main empty">
-                  <p>Nothing at this address.</p>
-                  <Link className="btn" to="/">Back to the board</Link>
-                </div>
-              } />
-            </Routes>
-          </section>
-
-          <aside className="col-side pane pane-lou">
-            <StatsCard player={player} stats={stats} picks={picks} />
-            <Sharp stats={stats} picks={picks} draft={askDraft} onDraftUsed={() => setAskDraft(null)} />
+        <div className="frame">
+          <aside className="sidebar" aria-label="Sports">
+            {SPORTS.map((s) => (
+              <button key={s.id} className={`side-link ${sport === s.id && location.pathname === '/' ? 'active' : ''}`} onClick={() => ctx.setSport(s.id)}>
+                <span className="side-icon" aria-hidden="true">{s.icon}</span>{s.label}
+              </button>
+            ))}
+            <div className="side-sep" />
+            <NavLink to="/picks" className="side-link"><span className="side-icon" aria-hidden="true">📈</span>My Picks</NavLink>
+            <div className="side-foot">
+              <p>Play money only. Nothing here is real gambling.</p>
+              <p>If betting stops being fun: 1-800-GAMBLER.</p>
+              <p>Prices: Kalshi. Stats: ESPN.</p>
+            </div>
           </aside>
-        </main>
+
+          <main className="main">
+            <Routes>
+              <Route path="/" element={<Board />} />
+              <Route path="/desk" element={<Board />} />
+              <Route path="/picks" element={<PicksPage />} />
+              <Route path="/game/:sport/:id" element={<GameHub />} />
+              <Route path="/team/:sport/:key" element={<TeamHub />} />
+              <Route path="*" element={<div className="empty"><p>Nothing at this address.</p><Link className="btn" to="/">Back to the board</Link></div>} />
+            </Routes>
+          </main>
+
+          <aside className="rail" aria-label="Bet slip and the desk">
+            <Slip />
+            <Desk stats={stats} picks={picks} draft={askDraft} onDraftUsed={() => setAskDraft(null)} />
+          </aside>
+        </div>
 
         <nav className="tabbar" aria-label="Sections">
-          <button className={tab === 'main' ? 'active' : ''} onClick={() => goTab('main')}>
-            {onHome ? 'Board' : 'Hub'}
-          </button>
-          <button className={tab === 'picks' ? 'active' : ''} onClick={() => goTab('picks')}>
-            My Picks {stats.pending > 0 && <span className="badge">{stats.pending}</span>}
-          </button>
-          <button className={tab === 'lou' ? 'active' : ''} onClick={() => goTab('lou')}>Lou</button>
+          <NavLink to="/" end>Board</NavLink>
+          <NavLink to="/picks">Picks{stats.pending > 0 && <span className="badge">{stats.pending}</span>}</NavLink>
+          <NavLink to="/desk">The Desk</NavLink>
         </nav>
-
-        <p className="disclaimer">Play money only. Nothing here is real gambling. If betting stops being fun: 1-800-GAMBLER.</p>
 
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       </div>

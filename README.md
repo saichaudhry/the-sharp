@@ -13,7 +13,8 @@
 TODO (your words). Points worth covering:
 - You get $1,000 in play money and pick winners at live Kalshi prediction-market prices (NFL / college football / MLB / NBA).
 - Picks are saved in a database and graded automatically from Kalshi's official market results.
-- Lou, the AI character, sees your actual record and recent picks, so he remembers you between visits.
+- Four AI handicappers (Lou the Vegas oddsmaker, The Quant, Hype, and The Fade) each see your actual record and recent picks, so they remember you between visits. Each keeps its own conversation.
+- "Ask the desk" on any game shows all four picks side by side, argued from that game's stats.
 - How this differs from my HW3/HW4 Gridiron Board. Both read Kalshi + ESPN, so make this argument clearly: that one is a read-only market browser; this one is a persistent game (accounts, a bankroll ledger in Postgres, settlement, an AI character with memory, team/game hubs) on a different stack.
 
 ## How to use it
@@ -27,7 +28,9 @@ Works on phones (bottom tab bar switches between Board, My Picks and Lou).
 TODO (your words). Candidates:
 - The server decides the price, not the browser (`api/picks.js`), so you can't fake odds.
 - Bankroll updates happen inside Postgres functions (`schema.sql`), so double clicks can't double-spend or double-pay.
-- Lou's memory (`api/_lib/persona.js`): the player file built from the DB on each message.
+- The characters' memory (`api/_lib/persona.js`): the player file built from the DB on each message. All four share one RULES block, so prompt-safety rules live in one place.
+- My Picks shows each open pick's entry price next to Kalshi's price right now.
+- Full-screen desktop layout (sports sidebar, board, docked bet slip + chat) that collapses to a single column with a bottom tab bar on phones. Visual style modelled on Novig's web app (black, cream text, one blue accent), without using Novig's name or logo.
 - Lou's face changes with your results (`src/components/LouAvatar.jsx`).
 - Kalshi games are matched to ESPN's schedule (Kalshi only gives names like "New York J"), which gives full team names, kickoff times and the stats hub links.
 - Game and team hubs (records, coach, roster, injuries, schedule, stats) built from ESPN's public API.
@@ -98,7 +101,10 @@ All endpoints return JSON. Errors are `{"error": "message"}`. Every endpoint exc
 | GET | `/api/team?sport=nfl&id=2` (or `&name=`) | Team hub: record, coach, roster, injuries, schedule, stats |
 | GET | `/api/game?sport=nfl&id=<Kalshi event ticker>` | Game hub: our line + both teams + ESPN game page |
 | GET | `/api/chat` | Chat history |
-| POST | `/api/chat` `{message, context?}` | Talk to Lou (max 500 chars, 6/min). `context: {sport, gameId}` adds that game's stats |
+| POST | `/api/chat` `{message, persona, context?}` | Talk to one character (max 500 chars, 6/min). `context: {sport, gameId}` adds that game's stats |
+| POST | `/api/panel` `{sport, gameId}` | All four characters' picks on one game (cached 10 min per game) |
+| GET | `/api/history?sport=nfl&id=<ticker>` | Hourly Kalshi price for both sides (the chart) |
+| GET | `/api/picks` | Open picks with Kalshi's current price |
 
 ESPN's site API (`site.api.espn.com`) is public but undocumented, so it could change without notice. Every hub section degrades to an empty state if a piece is missing.
 
@@ -109,14 +115,16 @@ api/
   _lib/db.js        Supabase client, HttpError, handle() wrapper for JSON errors
   _lib/player.js    player-id header, stats summary
   _lib/odds.js      Kalshi client: open game markets -> matched to ESPN -> board games; market results
-  _lib/persona.js   Lou's system prompt + the "player file" / "game file" memory blocks
+  _lib/persona.js   the four characters, shared RULES/MEMORY blocks, player file and game file
+  _lib/claude.js    the one function that calls the Claude API
   _lib/espn.js      ESPN client: team/game data flattened for the hub pages
-  me.js odds.js picks.js settle.js chat.js team.js game.js   one serverless function each
+  me.js odds.js picks.js settle.js chat.js panel.js history.js team.js game.js   one serverless function each
 src/
   App.jsx           loads/settles the player, layout, mobile tabs
   api.js            fetch wrapper + player id in localStorage
   format.js         odds math and formatting
-  pages/            GameHub, TeamHub (routed with React Router)
-  components/       Board, BetSlip, Picks, StatsCard, ProfitChart, Sharp (chat), LouAvatar, Onboarding, Toast, hub (shared hub pieces)
+  pages/            GameHub, TeamHub, PicksPage (routed with React Router)
+  components/       Board, Ticker, Slip, Desk (chat), Panel, Face, PriceChart, ProfitChart, Onboarding, Toast, hub (shared hub pieces)
+  personas.js       how each character looks (ids match api/_lib/persona.js)
 schema.sql          tables, row-level security, place_pick / settle_pick functions
 ```

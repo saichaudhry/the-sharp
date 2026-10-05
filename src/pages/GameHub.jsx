@@ -2,16 +2,16 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useApp } from '../context.js';
-import { fmtPrice, impliedProb, kickoff } from '../format.js';
-import BetSlip from '../components/BetSlip.jsx';
+import { centsOf, fmtPrice, kickoff, payoutOn100 } from '../format.js';
+import PriceChart from '../components/PriceChart.jsx';
+import Panel from '../components/Panel.jsx';
 import { FormStrip, Headshot, HubState, HubTabs, InjuryList, StatBars, TeamLogo, UpcomingList } from '../components/hub.jsx';
 import { distinct, readable } from '../colors.js';
 
 export default function GameHub() {
   const { sport, id } = useParams();
-  const { player, onPlaced, askLou } = useApp();
+  const { select, selection, askLou } = useApp();
   const [state, setState] = useState({ status: 'loading' });
-  const [slip, setSlip] = useState(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -52,6 +52,10 @@ export default function GameHub() {
   const leaders = (t) => event?.leaders.find((l) => l.teamId === t.id)?.categories || [];
 
   const tabs = [
+    {
+      id: 'desk', label: 'The Desk',
+      render: () => <section className="hub-section"><Panel game={line} /></section>,
+    },
     {
       id: 'matchup', label: 'Matchup',
       render: () => (
@@ -179,24 +183,28 @@ export default function GameHub() {
       </header>
 
       <section className="bet-strip">
-        {[line.away, line.home].map((team) => (
-          <button key={team} className="bet-side" onClick={() => setSlip({ game: line, team })} disabled={started}>
-            <span className="small muted">{team === line.home ? 'Home' : 'Away'} · {started ? 'betting closed' : `Kalshi ${line.cents?.[team] ?? Math.round(impliedProb(line.prices[team]) * 100)}¢`}</span>
-            <span className="bet-team">{team}</span>
-            <span className={`price big ${line.prices[team] > 0 ? 'dog' : 'fav'}`}>{fmtPrice(line.prices[team])}</span>
-          </button>
-        ))}
+        <div className="bet-sides">
+          {[line.away, line.home].map((team) => (
+            <button key={team} className={`bet-side ${selection?.game.id === line.id && selection.team === team ? 'on' : ''}`}
+              onClick={() => select({ game: line, team })} disabled={started}>
+              <span className="small muted">{team === line.home ? 'Home' : 'Away'}{started ? ' · betting closed' : ''}</span>
+              <span className="bet-team">{team}</span>
+              <span className="bet-prices">
+                <span className="pct big">{centsOf(line, team)}%</span>
+                <span className="muted small">{fmtPrice(line.prices[team])} · $100 › ${payoutOn100(line.prices[team])}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <PriceChart game={line} colors={[ac, hc]} />
         <div className="line-info small">
-          <span className="muted">{line.book}{line.volume ? ` · $${line.volume.toLocaleString()} traded` : ''}</span>
+          <span className="muted">Kalshi{line.volume ? ` · $${line.volume.toLocaleString()} traded` : ''}</span>
           {event?.line && (
             <span>
               {event.line.provider}: {event.line.details}
               {event.line.overUnder != null && ` · O/U ${event.line.overUnder}`}
             </span>
           )}
-          <button className="btn small" onClick={() => askLou(`Break down ${line.away} at ${line.home} for me. Who's the value side?`, { sport, gameId: line.id })}>
-            Ask Lou about this game
-          </button>
         </div>
       </section>
 
@@ -208,15 +216,6 @@ export default function GameHub() {
 
       <HubTabs tabs={tabs} />
 
-      {slip && (
-        <BetSlip
-          {...slip}
-          bankroll={Number(player.bankroll)}
-          onClose={() => setSlip(null)}
-          onPlaced={(data, pick) => { setSlip(null); onPlaced(data, pick); }}
-          onStale={() => { setSlip(null); setReload((n) => n + 1); }}
-        />
-      )}
     </div>
   );
 }

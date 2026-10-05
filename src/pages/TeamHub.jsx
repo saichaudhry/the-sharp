@@ -116,7 +116,7 @@ export default function TeamHub() {
             {t.record.splits.map((s) => <span key={s.label} className="muted">{s.label} {s.value}</span>)}
           </div>
         </div>
-        <button className="btn small hero-ask" onClick={() => askLou(`What's your read on the ${t.name} right now?`)}>Ask Lou</button>
+        <button className="btn small hero-ask" onClick={() => askLou(`What's your read on the ${t.name} right now?`)}>Ask the desk</button>
       </header>
 
       <HubTabs tabs={tabs} />

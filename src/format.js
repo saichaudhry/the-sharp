@@ -27,3 +27,9 @@ export function kickoff(iso) {
 
 // "Kansas City Chiefs" -> "Chiefs" for tight spaces.
 export const shortName = (team) => team.split(' ').slice(-1)[0];
+
+// A side's Kalshi price in cents (= % chance). Falls back to the American odds.
+export const centsOf = (game, team) => game.cents?.[team] ?? Math.round(impliedProb(game.prices[team]) * 100);
+
+// "$100 › $213": what $100 returns if this side wins.
+export const payoutOn100 = (price) => Math.round(100 + profitOn(100, price));
