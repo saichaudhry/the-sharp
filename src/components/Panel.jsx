@@ -24,10 +24,10 @@ export default function Panel({ game }) {
       <div className="panel-cta">
         <div>
           <strong>Ask the desk</strong>
-          <p className="muted small">Get all four handicappers' picks on this game, argued from the stats on this page.</p>
+          <p className="muted small">All four picks on this game.</p>
           {state.error && <p className="form-error">{state.error}</p>}
         </div>
-        <button className="btn primary" onClick={load}>{state.error ? 'Try again' : 'Get their picks'}</button>
+        <button className="btn primary" onClick={load}>{state.error ? 'Try again' : 'Get picks'}</button>
       </div>
     );
   }
@@ -58,7 +58,7 @@ export default function Panel({ game }) {
               </header>
               <p>{t.take || <span className="muted">{t.error || 'No take.'}</span>}</p>
               <button className="link-btn small" onClick={() => askLou(`About ${game.away} at ${game.home}: tell me more.`, { sport: game.sport, gameId: game.id }, t.persona)}>
-                Ask {p.name} a follow-up ›
+                Follow up ›
               </button>
             </article>
           );

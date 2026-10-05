@@ -30,8 +30,7 @@ export default function Onboarding({ onReady }) {
         <span className="eyebrow">Play-money sports picks</span>
         <h1>THE SHARP</h1>
         <p className="lede">
-          Pick winners at live Kalshi prices with <strong>$1,000 in play money</strong>.
-          Four AI handicappers (an oddsmaker, a quant, a hype man and a contrarian) argue every game and remember every pick you make.
+          <strong>$1,000 in play money</strong>, live Kalshi prices, and four AI handicappers who remember every pick.
         </p>
         <form onSubmit={submit} className="onboard-form">
           <label htmlFor="name">What should the desk call you?</label>
@@ -51,7 +50,7 @@ export default function Onboarding({ onReady }) {
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
         </form>
-        <p className="fine">Play money only, not real gambling. Your progress is saved to this browser.</p>
+        <p className="fine">Play money only.</p>
       </div>
     </div>
   );

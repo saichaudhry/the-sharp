@@ -32,7 +32,7 @@ export default function PicksPage() {
       const data = await api('settle', { method: 'POST' });
       setProfile(data);
       const n = data.settled.length;
-      notify({ text: n ? `${n} pick${n > 1 ? 's' : ''} settled.` : 'No new results yet. Games settle shortly after they end.', tone: n ? 'win' : 'neutral' });
+      notify({ text: n ? `${n} pick${n > 1 ? 's' : ''} settled.` : 'No new results yet.', tone: n ? 'win' : 'neutral' });
       loadLive();
     } catch (err) {
       notify({ text: err.message, tone: 'loss' });
@@ -61,7 +61,7 @@ export default function PicksPage() {
       </section>
 
       <section className="card chart-card">
-        <h3>Profit over time</h3>
+        <h3>Profit</h3>
         <ProfitChart picks={picks} />
         {player.rebuys > 0 && <p className="muted small">Busted {player.rebuys}× · the desk has not forgotten.</p>}
       </section>
@@ -94,7 +94,7 @@ export default function PicksPage() {
           <ul className="pick-cards">{list.map((p) => <SettledPick key={p.id} p={p} />)}</ul>
         </section>
       )) : (
-        <div className="empty"><p>Nothing settled yet. Results come in after games end.</p></div>
+        <div className="empty"><p>Nothing settled yet.</p></div>
       ))}
     </div>
   );

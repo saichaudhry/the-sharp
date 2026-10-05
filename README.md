@@ -1,132 +1,54 @@
 # The Sharp
 
-> TODO (write in your own words): one or two sentences on what this is.
-> e.g. a play-money sports picks game where an AI oddsmaker named Lou remembers every pick you make and roasts you for it.
+> TODO (your words): one sentence on what this is.
 
-**Live:** TODO: Vercel URL  
-**Demo video:** TODO: YouTube/Drive link
-
-<!-- TODO: add a screenshot: docs/screenshot.png -->
+**Live:** TODO · **Demo:** TODO · **Earlier version:** [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic)
 
 ## What it does
 
-TODO (your words). Points worth covering:
-- You get $1,000 in play money and pick winners at live Kalshi prediction-market prices (NFL / college football / MLB / NBA).
-- Picks are saved in a database and graded automatically from Kalshi's official market results.
-- Four AI handicappers (Lou the Vegas oddsmaker, The Quant, Hype, and The Fade) each see your actual record and recent picks, so they remember you between visits. Each keeps its own conversation.
-- "Ask the desk" on any game shows all four picks side by side, argued from that game's stats.
-- How this differs from my HW3/HW4 Gridiron Board. Both read Kalshi + ESPN, so make this argument clearly: that one is a read-only market browser; this one is a persistent game (accounts, a bankroll ledger in Postgres, settlement, an AI character with memory, team/game hubs) on a different stack.
+TODO (your words). Cover: $1,000 play money at live Kalshi prices, picks settled from Kalshi results, four AI handicappers that remember your record, game/team stat hubs. Say clearly how it differs from Gridiron Board (that one browses markets; this is a game with accounts, a ledger, settlement and characters).
 
 ## How to use it
 
-TODO (your words): enter a name → tap a price on the board → set a stake → lock it in → ask Lou about it. Come back after the game to see it settled.
-
-Works on phones (bottom tab bar switches between Board, My Picks and Lou).
+TODO: name → tap a price → stake → place pick → ask the desk. Works on phones.
 
 ## Features I'm most proud of
 
-TODO (your words). Candidates:
-- The server decides the price, not the browser (`api/picks.js`), so you can't fake odds.
-- Bankroll updates happen inside Postgres functions (`schema.sql`), so double clicks can't double-spend or double-pay.
-- The characters' memory (`api/_lib/persona.js`): the player file built from the DB on each message. All four share one RULES block, so prompt-safety rules live in one place.
-- My Picks shows each open pick's entry price next to Kalshi's price right now.
-- Full-screen desktop layout (sports sidebar, board, docked bet slip + chat) that collapses to a single column with a bottom tab bar on phones. Visual style modelled on Novig's web app (black, cream text, one blue accent), without using Novig's name or logo.
-- Lou's face changes with your results (`src/components/LouAvatar.jsx`).
-- Kalshi games are matched to ESPN's schedule (Kalshi only gives names like "New York J"), which gives full team names, kickoff times and the stats hub links.
-- Game and team hubs (records, coach, roster, injuries, schedule, stats) built from ESPN's public API.
-- "Ask Lou about this game" feeds him that game's real stats, so his pick is argued from data.
-
-## Architecture
-
-```
-React (Vite)  ──fetch──▶  /api/*  (Vercel serverless functions, Node)
-                               ├── Supabase Postgres (players, picks, messages, api_cache)
-                               ├── Kalshi public API (game-winner prices + results, no key)
-                               ├── ESPN public API (teams, rosters, injuries, schedules, game pages)
-                               └── Claude API (Lou's replies)
-```
-
-TODO (your words): a paragraph explaining why each piece exists.
-
-## Running it locally
-
-TODO: put the steps in your own words (the AI notes at the bottom have the details).
+TODO (your words). Ideas: server-side prices (`api/picks.js`), atomic bankroll SQL (`schema.sql`), one shared rules block for all characters (`api/_lib/persona.js`), Kalshi-to-ESPN matching (`api/_lib/odds.js`).
 
 ## Secrets
 
-TODO (your words): which keys exist, where they live (`.env.local` locally, Vercel env vars in production), why none of them reach the browser, and why `.env.local` is gitignored.
+TODO (your words): which keys, where they live, why none reach the browser.
 
-Known limit worth mentioning: chat is rate-limited per player (6 messages/min), but `/api/panel` (four Claude calls per game) is only protected by a 10-minute per-game cache, so a determined visitor could still run up API cost. A real deployment would add a per-player limit there and a spending cap on the Anthropic key.
+Known limit: `/api/panel` (four Claude calls per game) is only protected by a 10-minute cache, not a per-player limit.
 
 ## How I used AI
 
-TODO (your words, a short summary, the full detail is in `prompt_log.md`). Cite: Claude Code (Claude Opus 5.5) generated the initial scaffold of the frontend and API; note which parts you rewrote or changed yourself.
-
-## What I wrote or changed myself
-
-TODO: list the specific changes you made by hand (file + what + why).
+TODO (short; details in `prompt_log.md`). Cite Claude Code (Claude Opus 5.5) and list what you changed yourself.
 
 ---
 
 ## AI-generated technical notes
 
-*The section below was generated by Claude Code and is kept for reference.*
+*Generated by Claude Code.*
 
-### Setup
-
-1. `npm install`
-2. Create a Supabase project. In **SQL Editor**, paste and run `schema.sql` (safe to re-run).
-3. `cp .env.example .env.local` and fill in:
-   - `ANTHROPIC_API_KEY`
-   - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API)
-4. `npm run dev` → http://localhost:5180
-
-`npm run dev` serves both the React app and the `/api` functions. A small plugin in `vite.config.js` runs the files in `/api` the same way Vercel does, so no Vercel CLI is needed locally.
-
-### Deploy (Vercel)
-
-1. Push to GitHub, then on vercel.com: **Add New → Project → import the repo**. Framework is detected as Vite.
-2. Add the same three environment variables under **Settings → Environment Variables**.
-3. Deploy. Every push to `main` redeploys.
-
-### API
-
-All endpoints return JSON. Errors are `{"error": "message"}`. Every endpoint except `/api/odds` needs an `x-player-id` header (a UUID the browser generates once and stores in localStorage).
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| GET | `/api/odds?sport=nfl` | Upcoming games with Kalshi prices in cents and American odds (`nfl`, `ncaaf`, `mlb`, `nba`) |
-| POST | `/api/me` `{name}` | Create a player with $1,000 |
-| GET | `/api/me` | Player, stats and picks |
-| POST | `/api/picks` `{sport, eventId, team, stake}` | Place a pick at the server's current price |
-| POST | `/api/settle` | Grade picks from Kalshi market results, pay out, auto-rebuy if busted |
-| GET | `/api/team?sport=nfl&id=2` (or `&name=`) | Team hub: record, coach, roster, injuries, schedule, stats |
-| GET | `/api/game?sport=nfl&id=<Kalshi event ticker>` | Game hub: our line + both teams + ESPN game page |
-| GET | `/api/chat` | Chat history |
-| POST | `/api/chat` `{message, persona, context?}` | Talk to one character (max 500 chars, 6/min). `context: {sport, gameId}` adds that game's stats |
-| POST | `/api/panel` `{sport, gameId}` | All four characters' picks on one game (cached 10 min per game) |
-| GET | `/api/history?sport=nfl&id=<ticker>` | Hourly Kalshi price for both sides (the chart) |
-| GET | `/api/picks` | Open picks with Kalshi's current price |
-
-ESPN's site API (`site.api.espn.com`) is public but undocumented, so it could change without notice. Every hub section degrades to an empty state if a piece is missing.
-
-### Files
-
+**Run locally**
+```bash
+npm install
+cp .env.example .env.local   # ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+npm run dev                  # http://localhost:5180 (app + /api)
 ```
-api/
-  _lib/db.js        Supabase client, HttpError, handle() wrapper for JSON errors
-  _lib/player.js    player-id header, stats summary
-  _lib/odds.js      Kalshi client: open game markets -> matched to ESPN -> board games; market results
-  _lib/persona.js   the four characters, shared RULES/MEMORY blocks, player file and game file
-  _lib/claude.js    the one function that calls the Claude API
-  _lib/espn.js      ESPN client: team/game data flattened for the hub pages
-  me.js odds.js picks.js settle.js chat.js panel.js history.js team.js game.js   one serverless function each
-src/
-  App.jsx           loads/settles the player, layout, mobile tabs
-  api.js            fetch wrapper + player id in localStorage
-  format.js         odds math and formatting
-  pages/            GameHub, TeamHub, PicksPage (routed with React Router)
-  components/       Board, Ticker, Slip, Desk (chat), Panel, Face, PriceChart, ProfitChart, Onboarding, Toast, hub (shared hub pieces)
-  personas.js       how each character looks (ids match api/_lib/persona.js)
-schema.sql          tables, row-level security, place_pick / settle_pick functions
+Run `schema.sql` once in the Supabase SQL Editor.
+
+**Deploy:** import the repo on vercel.com, add the same three env vars. Every push redeploys.
+
+**Stack**
 ```
+React (Vite) ──▶ /api/* (Vercel functions)
+                  ├── Supabase Postgres  (players, picks, messages)
+                  ├── Kalshi API         (prices, results; no key)
+                  ├── ESPN API           (stats; public, undocumented)
+                  └── Claude API         (the four characters)
+```
+
+**Key files:** `api/_lib/odds.js` (Kalshi + matching), `api/_lib/espn.js` (stats), `api/_lib/persona.js` (characters), `api/_lib/claude.js` (Claude call), `api/settle.js` (payouts), `src/App.jsx` (layout), `src/pages/` (hubs, My Picks).

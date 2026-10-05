@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useApp } from '../context.js';
-import { centsOf, fmtPrice, kickoff, money, payoutOn100 } from '../format.js';
+import { centsOf, fmtPrice, kickoff, payoutOn100 } from '../format.js';
 import { readable, distinct } from '../colors.js';
 import { TeamLogo } from './hub.jsx';
 import PriceChart from './PriceChart.jsx';
@@ -57,7 +57,7 @@ export default function Board() {
     <div className="board">
       <div className="page-head">
         <div>
-          <span className="eyebrow">{SPORTS.find((s) => s.id === sport)?.short} · Kalshi prices, live</span>
+          <span className="eyebrow">Kalshi · live</span>
           <h1>{label}</h1>
         </div>
         <div className="sport-tabs" role="tablist">
@@ -78,15 +78,14 @@ export default function Board() {
 
       {state.status === 'ready' && !state.games.length && (
         <div className="empty">
-          <p>No upcoming {label} games on Kalshi this week.</p>
-          <p className="muted small">Off-season, or everything already started. Try another sport.</p>
+          <p>No {label} games this week.</p>
         </div>
       )}
 
       {featured && state.status === 'ready' && (
         <section className="featured">
           <div className="featured-main">
-            <div className="muted small">{kickoff(featured.commence)} · most traded · ${compact(featured.volume)} vol</div>
+            <div className="muted small">{kickoff(featured.commence)} · ${compact(featured.volume)} vol</div>
             <h2 className="featured-title">
               {featured.teams?.[featured.away]?.short || featured.away} <span className="muted">at</span> {featured.teams?.[featured.home]?.short || featured.home}
             </h2>
@@ -102,7 +101,7 @@ export default function Board() {
                 </div>
               ))}
             </div>
-            <Link to={`/game/${sport}/${encodeURIComponent(featured.id)}`} className="text-link">Open matchup hub ›</Link>
+            <Link to={`/game/${sport}/${encodeURIComponent(featured.id)}`} className="text-link">Matchup ›</Link>
           </div>
           <PriceChart game={featured} colors={teamColors(featured)} />
         </section>
@@ -134,9 +133,6 @@ export default function Board() {
           </div>
         </section>
       ))}
-      {state.status === 'ready' && state.games.length > 0 && (
-        <p className="muted small source">Prices: Kalshi public market data, refreshed every minute. A $100 pick at 40% returns {money(payoutOn100(150))}.</p>
-      )}
     </div>
   );
 }

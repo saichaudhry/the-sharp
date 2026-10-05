@@ -5,7 +5,7 @@ import { PERSONAS, personaById } from '../personas.js';
 import Face, { moodFor } from './Face.jsx';
 
 const MAX_CHARS = 500; // matches api/chat.js
-const QUICK_PROMPTS = ['Roast my record.', 'Who should I take this week?', 'Grade my last pick.', 'Explain what 54¢ means.'];
+const QUICK_PROMPTS = ['Roast my record.', 'Best bet this week?', 'Grade my last pick.'];
 const PERSONA_KEY = 'the-sharp:persona';
 const savedPersona = () => {
   try { return personaById(localStorage.getItem(PERSONA_KEY)).id; } catch { return 'lou'; }

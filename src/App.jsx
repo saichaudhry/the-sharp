@@ -62,6 +62,13 @@ export default function App() {
   return <Shell profile={profile} setProfile={setProfile} toast={toast} setToast={setToast} />;
 }
 
+const REPO = 'https://github.com/saichaudhry/the-sharp';
+const GitHubIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+  </svg>
+);
+
 const SPORT_KEY = 'the-sharp:sport';
 const savedSport = () => {
   try { return SPORTS.find((s) => s.id === localStorage.getItem(SPORT_KEY))?.id || 'nfl'; } catch { return 'nfl'; }
@@ -117,6 +124,7 @@ function Shell({ profile, setProfile, toast, setToast }) {
             <NavLink to="/picks">My Picks{stats.pending > 0 && <span className="badge">{stats.pending}</span>}</NavLink>
           </nav>
           <div className="topbar-right">
+            <a href={REPO} target="_blank" rel="noreferrer" className="gh-icon" aria-label="Source code on GitHub" title="Source on GitHub"><GitHubIcon /></a>
             <span className="player-name">{player.name}</span>
             <Link to="/picks" className="bankroll-pill" title="Play-money bankroll">{money(player.bankroll)}</Link>
           </div>
@@ -132,9 +140,8 @@ function Shell({ profile, setProfile, toast, setToast }) {
             <div className="side-sep" />
             <NavLink to="/picks" className="side-link"><span className="side-icon" aria-hidden="true">📈</span>My Picks</NavLink>
             <div className="side-foot">
-              <p>Play money only. Nothing here is real gambling.</p>
-              <p>If betting stops being fun: 1-800-GAMBLER.</p>
-              <p>Prices: Kalshi. Stats: ESPN.</p>
+              <a href={REPO} target="_blank" rel="noreferrer" className="gh-link"><GitHubIcon /> Source on GitHub</a>
+              <p>Play money only · 1-800-GAMBLER</p>
             </div>
           </aside>
 

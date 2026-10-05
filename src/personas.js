@@ -8,7 +8,7 @@ export const PERSONAS = [
     title: 'Retired Vegas oddsmaker',
     color: '#e8b64c',
     face: { skin: '#e9b98f', hat: 'fedora', mustache: true, toothpick: true },
-    hello: "Sit down, kid. Pick a game off the board or ask me something. I remember every bet you make.",
+    hello: "Sit down, kid. I remember every bet you make.",
   },
   {
     id: 'quant',
@@ -17,7 +17,7 @@ export const PERSONAS = [
     title: 'Ex hedge-fund quant',
     color: '#179be7',
     face: { skin: '#b07a52', hair: 'bun', glasses: 'round' },
-    hello: 'Every price on this board is a probability. Ask me where the market is wrong and by how much.',
+    hello: "Every price is a probability. Ask me where it's wrong.",
   },
   {
     id: 'hype',
@@ -26,7 +26,7 @@ export const PERSONAS = [
     title: 'Ex linebacker, radio host',
     color: '#ee3e3e',
     face: { skin: '#7a4a2b', hat: 'cap', beard: true },
-    hello: "LET'S GO! Underdogs, rivalry games, gut calls. Tell me who you like and I'll tell you why you're right.",
+    hello: "LET'S GO! Who we riding today?",
   },
   {
     id: 'contrarian',
@@ -35,7 +35,7 @@ export const PERSONAS = [
     title: 'Retired bookie',
     color: '#0cc565',
     face: { skin: '#f1c9a5', hair: 'bob', glasses: 'shades', earrings: true },
-    hello: "Whatever everyone's betting, I'm probably against it. Ask me who the public is wrong about.",
+    hello: "Whatever the crowd likes, I'm fading.",
   },
 ];
 

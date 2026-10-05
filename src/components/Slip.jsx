@@ -27,8 +27,8 @@ export default function Slip() {
     return (
       <div className="slip slip-empty">
         <div className="slip-empty-icon" aria-hidden="true">＋</div>
-        <strong>Bet slip empty</strong>
-        <span className="muted small">Tap a price on the board to add a pick.</span>
+        <strong>Bet slip</strong>
+        <span className="muted small">Tap a price to start.</span>
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function Slip() {
           </div>
         </div>
 
-        <label htmlFor="stake" className="small muted">Stake (play money)</label>
+        <label htmlFor="stake" className="small muted">Stake</label>
         <div className="stake-row">
           <span className="dollar">$</span>
           <input id="stake" ref={inputRef} inputMode="decimal" value={stake}
@@ -105,9 +105,6 @@ export default function Slip() {
           <strong>{money(valid ? amount + toWin : 0)}</strong>
           <span className="muted small">if {team.split(' ').pop()} win</span>
         </div>
-        <p className="muted small slip-note">
-          Kalshi traders give this a {cents}% chance. Profit if it hits: <strong className="win">{money(toWin)}</strong>.
-        </p>
 
         {(hint || error) && <p className="form-error" role="alert">{error || hint}</p>}
         <button className="btn primary block" disabled={!valid || busy}>{busy ? 'Placing…' : 'Place pick'}</button>
