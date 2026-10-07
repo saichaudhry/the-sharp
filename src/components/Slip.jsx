@@ -6,7 +6,7 @@ import { useApp } from '../context.js';
 import { fmtPrice, money, profitOn, kickoff, centsOf } from '../format.js';
 import { TeamLogo } from './hub.jsx';
 
-const QUICK = [10, 25, 50, 100];
+const QUICK = [5, 20, 50, 200];
 const MAX_STAKE = 500; // matches the server check in api/picks.js
 
 export default function Slip() {
