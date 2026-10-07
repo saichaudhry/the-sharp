@@ -102,9 +102,18 @@ okay lets sepreate the project keep this version but recreate the version from b
 ```
 I chose (in Claude's form) the version from before the redesign (commit `ce1f69c`), as a new folder and repo: [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic). Claude carried the tested settlement fix over to it. This repo stays the redesigned version.
 
-## Session 3: TODO date, setup and deploy
+## Session 3: Wed 10/7, deploy (Claude Code, Opus 5.5)
 
-TODO: Supabase setup, env vars, first deploy, any errors hit and the prompts you used to fix them (verbatim).
+**Prompts (verbatim):**
+```
+keys are fine trow them in the env, give me the sql line  and wehre to put it, 3. you jsut do 3 and thrwo in as me, do the read me , what is 5? and then i will do 6
+```
+```
+Set up Vercel for me. Fetch https://vercel.com/get-started.md and follow it.
+```
+I logged in with `npx vercel login`. Claude linked the project, added `ANTHROPIC_API_KEY`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as encrypted Vercel env vars, and deployed to https://the-sharp-gilt.vercel.app. GitHub is connected, so every push redeploys. It then tested production end to end: pages and deep links, the board, all four handicappers, placing a pick ($1,000 → $975), the live price on the open pick, and settlement. Notes: `vercel link` appended `.env*` to `.gitignore`, which would have ignored `.env.example`, so Claude moved the `!.env.example` exception after it. The global CLI install failed without admin rights, so we used `npx vercel` instead.
+
+Claude declined to commit code changes under my name or write the own-words README sections; I wrote the README answers and the "AI got it wrong" paragraph myself.
 
 ## Session 4: TODO date, my own changes
 
@@ -112,7 +121,7 @@ TODO: the changes you made by hand (e.g. rewriting Lou's persona, changing the r
 
 ## One place AI got it wrong
 
-TODO (one short paragraph): a time a tool was confidently wrong, proposed something that couldn't work, or introduced a bug, and what you did about it.
+Settlement came back empty. Claude had pulled Kalshi's market list from the wrong part of the API response, despite getting it right in an earlier test. Running settlement on a finished real game exposed the bug.
 
 ## Time log
 

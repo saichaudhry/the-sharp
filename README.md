@@ -1,30 +1,38 @@
 # The Sharp
 
-> TODO (your words): one sentence on what this is.
+> Fantasy sportsbook with real market prices: $1,000 in play money, live Kalshi odds, and four AI handicappers who remember you.
 
 **Live:** https://the-sharp-gilt.vercel.app · **Demo:** TODO · **Earlier version:** [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic)
 
 ## What it does
 
-TODO (your words). Cover: $1,000 play money at live Kalshi prices, picks settled from Kalshi results, four AI handicappers that remember your record, game/team stat hubs. Say clearly how it differs from Gridiron Board (that one browses markets; this is a game with accounts, a ledger, settlement and characters).
+Fantasy sportsbook with real market prices. Every account gets $1,000 in play money to bet NFL, college football, MLB, and NBA at live Kalshi odds. Kalshi's results settle each bet, and four AI handicappers offer their takes alongside game and team stats.
+
+**How it's different from my Gridiron Board (HW3/HW4):** Gridiron Board shows you the markets. This one lets you trade them. It has logins, a bankroll that persists, settled bets, and handicappers who remember you. It's also rebuilt from scratch on React, Vercel, and Supabase instead of static HTML and Flask.
 
 ## How to use it
 
-TODO: name → tap a price → stake → place pick → ask the desk. Works on phones.
+Enter a name, tap a price on the board, set a stake, and place the pick. Open any game for stats, injuries and the handicappers' takes, or chat with one of them in the side panel. Come back after the game and the pick settles automatically. Works on phones (bottom tab bar).
 
 ## Features I'm most proud of
 
-TODO (your words). Ideas: server-side prices (`api/picks.js`), atomic bankroll SQL (`schema.sql`), one shared rules block for all characters (`api/_lib/persona.js`), Kalshi-to-ESPN matching (`api/_lib/odds.js`).
+- Odds come from the server, never the client, so nobody can spoof a price.
+- Postgres handles the bankroll in one transaction, so spamming the bet button can't spend money twice.
+- One rulebook governs all four handicappers.
+- Kalshi's team abbreviations are matched to ESPN's.
+- Open bets show how the line has moved since you placed them: "you got 47%, it's 52% now."
 
 ## Secrets
 
-TODO (your words): which keys, where they live, why none reach the browser.
+Locally, keys sit in `.env.local`, which git ignores. In production, they're encrypted Vercel env vars. The frontend only hits `/api`, so Claude and Supabase credentials never reach the browser, and the public Supabase key can't read or write any table.
 
 Known limit: `/api/panel` (four Claude calls per game) is only protected by a 10-minute cache, not a per-player limit.
 
 ## How I used AI
 
-TODO (short; details in `prompt_log.md`). Cite Claude Code (Claude Opus 5.5) and list what you changed yourself.
+Claude Code (Opus 5.5) did most of the building, and Claude is also the brain behind each handicapper. Full details are in `prompt_log.md`.
+
+What I changed: TODO (fill in after editing `api/_lib/persona.js`)
 
 ---
 
