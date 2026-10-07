@@ -125,7 +125,10 @@ Settlement came back empty. Claude had pulled Kalshi's market list from the wron
 
 ## Time log
 
+Estimated from commit times (commits show when work was saved, not when it started).
+
 | Date | Hours | What |
 | --- | --- | --- |
-| 10/4 | TODO | Idea, scaffold, local run |
-| TODO | | |
+| 10/4 | ~6–7 | Idea, setup, running it locally, game and team pages |
+| 10/5 | ~2–3 | Switched to Kalshi prices, four handicappers, redesign, classic split, text cleanup |
+| 10/7 | ~1–1.5 | Vercel deploy, production testing, README and prompt log |
