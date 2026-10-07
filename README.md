@@ -2,7 +2,7 @@
 
 > TODO (your words): one sentence on what this is.
 
-**Live:** TODO · **Demo:** TODO · **Earlier version:** [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic)
+**Live:** https://the-sharp-gilt.vercel.app · **Demo:** TODO · **Earlier version:** [the-sharp-classic](https://github.com/saichaudhry/the-sharp-classic)
 
 ## What it does
 
