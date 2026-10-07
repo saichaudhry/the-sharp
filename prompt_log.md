@@ -115,9 +115,14 @@ I logged in with `npx vercel login`. Claude linked the project, added `ANTHROPIC
 
 Claude declined to commit code changes under my name or write the own-words README sections; I wrote the README answers and the "AI got it wrong" paragraph myself.
 
-## Session 4: TODO date, my own changes
+## Session 4: Wed 10/7, my own changes
 
-TODO: the changes you made by hand (e.g. rewriting Lou's persona, changing the roast thresholds in `moodFor`, adding a feature) and any prompts.
+- **Hype Meter (my idea, my wording):**
+  ```
+  When you pick a side, end with your Hype Meter: "Hype Meter: 7/10". Save 9 and 10 for underdogs you truly love, and drop to 3 or lower when your gut and the numbers disagree.
+  ```
+  This line was committed via a Claude-assisted commit (`84d4da4`). My own follow-up edit on GitHub (`e8268cc`) removed the closing backtick of Hype's prompt, which broke `persona.js` and took chat down on the live site (500s). Claude found it, restored the backtick (`7f5602b`), and confirmed in production that Hype now ends picks with the meter (e.g. "Hype Meter: 3/10" when his gut liked the Bucs but the market had Dallas at 80%).
+- **Quick-stake buttons:** I changed `QUICK` in `src/components/Slip.jsx` from `[10, 25, 50, 100]` to `[5, 20, 50, 200]` on GitHub (`28b55e9`).
 
 ## One place AI got it wrong
 
