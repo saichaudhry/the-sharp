@@ -45,7 +45,7 @@ Before building, Claude checked my earlier projects (Gridiron Board / Ask the Bo
 - demo odds when no Odds API key is set
 - this log and a README skeleton
 
-TODO: add what you checked and changed after reading the code.
+My own changes are in Session 4 below.
 
 Setup in the same session: I gave Claude the Supabase URL/secret and Anthropic key (it put them in the gitignored `.env.local`, and warned me to rotate them since I pasted them in chat). The first player creation failed with "Something went wrong on our end." because I hadn't run `schema.sql` yet; Claude changed the error so it says the tables are missing, and I ran the SQL in the Supabase SQL Editor. Claude then tested create player → place pick → chat end to end.
 
